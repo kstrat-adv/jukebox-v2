@@ -365,7 +365,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .tc-title { font-family: var(--f-narrow); font-size: calc(11 * var(--pt)); font-weight: 700; line-height: 1.15; text-align: center; }
 /* A long artist or album name wraps to a second line instead of being cut off. */
 .tc-artist, .tc-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: break-word; flex: none; }
-/* Songs start at 9 pt in one column. fitCards() in app.js steps them down, or into two columns, until they fit. */
+/* Songs start at 9 pt in one column. fitCards() in print.js steps them down, or into two columns, until they fit. */
 .tc-tracks { font-family: var(--f-narrow); font-size: calc(var(--tk) * var(--pt)); line-height: 1.2; flex: 1; min-height: 0; overflow: hidden; }
 .tc-tracks.two-col { columns: 2; column-gap: calc(8 * var(--pt)); }
 .tc-track { display: grid; grid-template-columns: calc(var(--tk) * 1.3 * var(--pt)) minmax(0, 1fr); gap: calc(3 * var(--pt)); break-inside: avoid; }
@@ -475,7 +475,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 #printArea.measuring { display: block; position: fixed; left: -20000px; top: 0; visibility: hidden; }
 .print-page { width: 8.5in; height: 11in; overflow: hidden; position: relative; background: #ffffff; }
 .print-sheet { width: 11in; height: 8.5in; overflow: hidden; position: relative; background: #ffffff; }
-/* On the kiosk, a landscape sheet is turned onto a portrait page (see setPageShape in app.js). */
+/* On the kiosk, a landscape sheet is turned onto a portrait page (see setPageShape in print.js). */
 #printArea.turned .print-sheet { width: 8.5in; height: 11in; }
 #printArea.turned .print-sheet .sheet-page { position: absolute; left: 50%; top: 50%; width: 11in !important; height: 8.5in !important;
   transform: translate(-50%, -50%) rotate(90deg); }

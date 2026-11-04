@@ -1,0 +1,265 @@
+/* Jukebox Catalog: the rail, events, and start-up. Loads last.
+   One of the plain script files index.html loads in order (core.js, jukeboxes.js, data.js, find.js, jukebox.js, album.js, print.js, manage.js, guides.js, idle.js, main.js); no build step.
+   Top-level names are shared across the files, so each file only declares its own. */
+'use strict';
+
+/* =========================================================
+   Rail
+   ========================================================= */
+function renderRail() {
+  $('#navManage').innerHTML = `${pinRequired() ? (ui.unlocked ? ICON.unlock : ICON.lock) : ICON.sliders}<span>Manage</span>`;
+  let sync = '';
+  const waiting = Saver.pending();
+  if (LIVE && waiting) {
+    const what = `${waiting} change${waiting > 1 ? 's' : ''}`;
+    sync = remote.offline ? `<span class="rail-sync offline">Offline · ${what} waiting to save</span>`
+      : Saver.needPin ? `<span class="rail-sync offline">${what} waiting for the PIN</span>`
+      : `<span class="rail-sync">Saving ${what}…</span>`;
+  } else if (LIVE) {
+    sync = remote.offline
+      ? `<span class="rail-sync offline">Offline${remote.loadedAt ? ` · saved copy from ${clock(remote.loadedAt)}` : ''}</span>`
+      : remote.loadedAt ? `<span class="rail-sync">Updated ${clock(remote.loadedAt)}</span>` : '';
+  }
+  $('#railStats').innerHTML = `<span>${Store.albums().length} albums</span><span>${Store.filledCount()} of ${JUKEBOX.slots.count} slots filled</span>${sync}`;
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.dataset.view === ui.view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+}
+
+function setView(v) {
+  ui.view = v;
+  ['find', 'jukebox', 'manage'].forEach(name => { $('#view-' + name).hidden = name !== v; });
+  if (v === 'manage') { ui.manage = 'home'; ui.resetArmed = false; }
+  renderRail();
+  if (v === 'find') renderFind();
+  if (v === 'jukebox') renderJukebox();
+  if (v === 'manage') renderManage();
+  $('#main').scrollTop = 0;
+}
+
+
+/* =========================================================
+   Events
+   ========================================================= */
+function rerenderAfterChange() {
+  renderRail();
+  if (ui.view === 'find') renderFind();
+  if (ui.view === 'jukebox') renderJukebox();
+  if (ui.view === 'manage') renderManage();
+  if (ui.sheet) renderSheet();
+}
+const fresh = () => ({ slot: null, incoming: null, fromAlbum: false, q: '' });
+
+async function onClick(e) {
+  const t = e.target.closest('button, [data-close-sheet], [data-help-close]');
+  if (!t || t.id === 'askYes' || t.id === 'askNo') return;
+  const d = t.dataset;
+
+  if ('goIdle' in d) { goIdle(); return; }
+  if ('helpOpen' in d) { openHelp(); return; }
+  if ('helpClose' in d) { closeHelp(); return; }
+  if (d.printGuide) { await printGuides(d.printGuide); return; }
+  if ('helpStart' in d) {
+    closeHelp(); closeSheet(); setView('manage');
+    if (unlocked()) { ui.swap = fresh(); ui.manage = 'swap-slot'; renderManage(); }
+    return;
+  }
+  if (d.view) { closeSheet(); setView(d.view); return; }
+  if ('closeSheet' in d) { closeSheet(); return; }
+  if (d.open) { openAlbum(d.open, +d.disc || null, +d.track || null); return; }
+
+  if (d.chip) {
+    const set = { decade: ui.decades, genre: ui.genres, tag: ui.tags, format: ui.formats }[d.chip];
+    const val = d.chip === 'decade' ? +d.value : d.value;
+    if (set.has(val)) set.delete(val); else set.add(val);
+    ui.allSongs = false;
+    renderFind();
+    return;
+  }
+  if (t.id === 'onlyJuke') { ui.onlyJuke = !ui.onlyJuke; renderFind(); return; }
+  if (t.id === 'clearAll') { clearFilters(); renderFind(); return; }
+  if (t.id === 'clearEverything') { clearFilters(); ui.q = ''; $('#q').value = ''; renderFind(); return; }
+  if (t.id === 'qClear') { ui.q = ''; $('#q').value = ''; ui.allSongs = false; renderResults(); $('#q').focus(); return; }
+  if (t.id === 'allSongs') { ui.allSongs = true; renderResults(); return; }
+  if (d.sort) { ui.sort = d.sort; renderResults(); return; }
+
+  if (d.slot && d.mode === 'open') { const v = state.slots[+d.slot]; if (v) openAlbum(v.id, v.disc, null); return; }
+  if (d.slot && d.mode === 'pick') {
+    ui.swap.slot = +d.slot;
+    ui.manage = ui.swap.fromAlbum ? 'swap-confirm' : 'swap-pick';
+    ui.swap.q = '';
+    renderManage(); $('#main').scrollTop = 0;
+    return;
+  }
+
+  // Manage: keypad
+  if (d.key) {
+    if (ui.checkingPin) return;
+    if (d.key === 'clear') ui.pin = '';
+    else if (d.key === 'del') ui.pin = ui.pin.slice(0, -1);
+    else if (ui.pin.length < 4) ui.pin += d.key;
+    ui.pinError = '';
+    if (ui.pin.length === 4) {
+      const pin = ui.pin;
+      ui.checkingPin = true; renderManage();
+      const r = await Actions.verifyPin(pin);
+      ui.checkingPin = false; ui.pin = '';
+      if (r.ok) { ui.unlocked = true; ui.pinValue = pin; ui.manage = 'home'; toast('Manage is unlocked.'); Saver.kick(0); }
+      else ui.pinError = r.net ? "Couldn't check the PIN. Check the Wi-Fi and try again." : (r.message || "That PIN didn't match. Try again.");
+    }
+    renderRail(); renderManage();
+    return;
+  }
+  if (!unlocked() && !('closeSheet' in d)) {
+    // Everything below needs Manage unlocked.
+    if (d.manage || d.loadAlbum || d.tagAdd || d.tagRemove || d.queueAlbum) return;
+  }
+  if (d.manage) {
+    if (d.manage === 'swap-slot' && !ui.swap.fromAlbum) ui.swap = fresh();
+    if (d.manage === 'home') ui.swap = fresh();
+    ui.manage = d.manage; ui.resetArmed = false;
+    renderManage(); $('#main').scrollTop = 0;
+    return;
+  }
+  if (('incoming' in d && t.classList.contains('pick')) || d.incoming === '') {
+    if (d.incoming) { const i = d.incoming.lastIndexOf(':'); ui.swap.incoming = { id: d.incoming.slice(0, i), disc: +d.incoming.slice(i + 1) }; }
+    else ui.swap.incoming = null;
+    ui.manage = 'swap-confirm';
+    renderManage(); $('#main').scrollTop = 0;
+    return;
+  }
+  if ('swapConfirm' in d) {
+    const slot = ui.swap.slot;
+    const inc = ui.swap.incoming;
+    const inA = inc && BY_ID[inc.id];
+    const r = await Actions.swap(slot, inc);
+    if (!r.ok) return;
+    ui.lastSwap = {
+      text: inA ? `Slot ${pad2(slot)} now holds ${inA.title}${discLabel(inA, inc.disc)}.` : `Slot ${pad2(slot)} is now empty.`,
+      added: 1 + (r.out ? 1 : 0) + (inc ? 1 : 0),
+    };
+    ui.swap = fresh();
+    ui.manage = 'swap-done';
+    rerenderAfterChange();
+    $('#main').scrollTop = 0;
+    return;
+  }
+  if (d.loadAlbum) {
+    const a = BY_ID[d.loadAlbum];
+    const disc = a.discs.map((_, i) => i + 1).find(x => Store.slotFor(a.id, x) === null);
+    ui.swap = { slot: null, incoming: { id: a.id, disc }, fromAlbum: true, q: '' };
+    closeSheet();
+    ui.view = 'manage';
+    ['find', 'jukebox', 'manage'].forEach(name => { $('#view-' + name).hidden = name !== 'manage'; });
+    ui.manage = 'swap-slot';
+    renderRail(); renderManage(); $('#main').scrollTop = 0;
+    return;
+  }
+  if (d.printPage) { await printKeys([d.printPage]); return; }
+  if ('printAll' in d) { await printKeys(state.reprint.slice()); return; }
+  if ('clearPrinted' in d) { await Actions.clearPrinted(); renderManage(); return; }
+  if (d.skipPage) {
+    await Actions.skip(d.skipPage, d.skipPage.startsWith('card')
+      ? 'Skipped. The jukebox keeps its old title card.'
+      : d.skipPage.startsWith('index')
+      ? 'Skipped. The binder keeps its old index page.'
+      : 'Skipped. The binder keeps its old page. You can reprint it from the album any time.');
+    renderManage();
+    return;
+  }
+  if ('queueCards' in d) {
+    const cards = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.slotsPerCard);
+    await Actions.queue(Array.from({ length: cards }, (_, i) => 'card:' + i), `Added all ${cards} title cards to Pages to print.`);
+    renderManage();
+    return;
+  }
+  if ('queueIndex' in d) {
+    const pages = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.indexPerPage);
+    await Actions.queue(Array.from({ length: pages }, (_, i) => 'index:' + (i + 1)), `Added ${pages} index pages to Pages to print.`);
+    renderManage();
+    return;
+  }
+  if ('queueAlbums' in d) {
+    // The whole binder, in shelf order. For the first print or a fresh binder.
+    const keys = Store.albums().slice().sort(byArtist).map(a => 'album:' + a.id);
+    await Actions.queue(keys, `Added ${keys.length} album pages to Pages to print.`);
+    renderManage();
+    return;
+  }
+  if (d.queueAlbum) {
+    await Actions.queue(['album:' + d.queueAlbum], "Added this album's page to Pages to print.");
+    if (ui.view === 'manage') renderManage();
+    return;
+  }
+  if ('sync' in d) { await Actions.sync(); rerenderAfterChange(); return; }
+  if ('motion' in d) { await Actions.setMotion(!motionOn()); renderManage(); return; }
+  if ('lock' in d) { lockManage(); toast('Manage is locked.'); rerenderAfterChange(); return; }
+  if ('reset' in d) {
+    if (!ui.resetArmed) { ui.resetArmed = true; renderManage(); return; }
+    Actions.reset(); ui.resetArmed = false; clearFilters(); toast('Sample data reset.'); rerenderAfterChange();
+    return;
+  }
+  if ('idlePreview' in d) { showIdle(); return; }
+
+  if (d.tagAdd && ui.sheet) { await Actions.addTag(ui.sheet.id, d.tagAdd); renderSheet(); if (ui.view === 'find') renderFind(); return; }
+  if (d.tagRemove && ui.sheet) { await Actions.removeTag(ui.sheet.id, d.tagRemove); renderSheet(); if (ui.view === 'find') renderFind(); return; }
+}
+
+document.addEventListener('click', e => {
+  onClick(e).catch(err => { ui.busy = false; toast('Something went wrong: ' + (err && err.message ? err.message : err)); });
+});
+
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'tagForm') return;
+  e.preventDefault();
+  const input = $('#tagNew');
+  if (!ui.sheet || !unlocked() || !input.value.trim()) return;
+  Actions.addTag(ui.sheet.id, input.value);
+  renderSheet();
+  if (ui.view === 'find') renderFind();
+});
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'q') { ui.q = e.target.value; ui.allSongs = false; renderResults(); }
+  if (e.target.id === 'pickQ') { ui.swap.q = e.target.value; renderPickList(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!$('#askWrap').hidden) return;
+    if (!$('#idle').hidden) { $('#idle').hidden = true; return; }
+    if (!$('#helpWrap').hidden) { closeHelp(); return; }
+    if (ui.sheet) closeSheet();
+  }
+});
+
+// A cover image that fails to load is removed, so the pattern and title show instead.
+document.addEventListener('error', e => {
+  const el = e.target;
+  if (el && el.tagName === 'IMG' && el.parentNode && el.parentNode.classList && el.parentNode.classList.contains('cover')) el.remove();
+}, true);
+
+$('#idle').addEventListener('click', () => { $('#idle').hidden = true; bump(); if (quietMoment()) refresh(true); });
+// A new #api= address typed into the page address takes effect right away.
+window.addEventListener('hashchange', () => { if (/[#&]api=/.test(location.hash)) location.reload(); });
+['pointerdown', 'keydown', 'input'].forEach(ev => document.addEventListener(ev, bump, { passive: true }));
+
+/* =========================================================
+   Start
+   ========================================================= */
+if (LIVE) {
+  const cached = readJSON(CONFIG.cacheKey);
+  if (cached && cached.ok) {
+    try { applyCatalog(cached); Saver.queue.forEach(op => applyLocal(op, true)); } catch (e) { /* stale cache: ignore */ }
+  }
+  renderRail(); renderFind();
+  if (Saver.pending()) Saver.kick(0); else refresh(true);   // unsaved changes from last time go first
+  setInterval(() => { if (quietMoment()) refresh(true); }, CONFIG.refreshMs);
+} else {
+  $('#demoNote').hidden = false;
+  state = demoLoad();
+  setAlbums(demoAlbums());
+  reindex();
+  renderRail(); renderFind();
+}
+bump();
