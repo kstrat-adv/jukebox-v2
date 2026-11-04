@@ -9,7 +9,16 @@
 let ALBUMS = [];
 let BY_ID = {};
 let state = { slots: {}, seeburgSlots: {}, tags: {}, vocab: [], swapLog: [], reprint: [], printed: {}, arrived: [], newIds: [] };
-const remote = { settings: {}, lastSync: {}, loadedAt: 0, offline: false, loaded: false, pinRequired: false };
+const remote = { settings: {}, lastSync: {}, loadedAt: 0, offline: false, loaded: false, pinRequired: false, version: '' };
+// What the deployed script must be for a feature. An older script ignores what it doesn't know and says ok,
+// so the app checks before offering it.
+const NEEDS_SCRIPT = { skipAll: '2.1' };
+function scriptAtLeast(v) {
+  if (!LIVE) return true;
+  const a = String(remote.version || '1').split('.').map(Number), b = String(v).split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) { const x = a[i] || 0, y = b[i] || 0; if (x !== y) return x > y; }
+  return true;
+}
 
 function prepAlbum(a) {
   a.genres = (a.genres || []).map(g => GENRE_LABELS[g] || g);
@@ -73,6 +82,7 @@ function applyCatalog(cat) {
   remote.settings = cat.settings || {};
   remote.pinRequired = cat.pinRequired !== false;   // an older script that doesn't say still wants its PIN
   remote.lastSync = cat.lastSync || {};
+  remote.version = String(cat.version || '1');   // v1 scripts didn't say
   remote.loadedAt = cat.generatedAt || Date.now();
   remote.loaded = true;
   reindex();

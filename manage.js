@@ -134,8 +134,9 @@ function renderManage() {
         ${total
           ? `${CONFIG.printing ? '' : '<p class="detail-meta">In this preview, Print only marks an item as printed. On the kiosk it opens the tablet\'s print screen.</p>'}
              <div class="frow"><button class="btn btn-primary" data-print-all>Print everything (${total})</button>
-               ${n ? `<button class="btn btn-secondary" data-skip-all>Skip everything (${n})</button>` : ''}
+               ${n && scriptAtLeast(NEEDS_SCRIPT.skipAll) ? `<button class="btn btn-secondary" data-skip-all>Skip everything (${n})</button>` : ''}
                ${printedCount ? `<button class="btn btn-secondary" data-clear-printed>Clear ${printedCount} printed</button>` : ''}</div>
+             ${n && !scriptAtLeast(NEEDS_SCRIPT.skipAll) ? `<p class="muted small">Skip everything needs the Sheet's script updated: this address runs script ${esc(remote.version)}, and it takes ${NEEDS_SCRIPT.skipAll} (in Apps Script: Deploy → Manage deployments → New version).</p>` : ''}
              ${pageKeys.length ? `<h2 class="section-title">Binder pages (${pageKeys.length})</h2>
                <p class="muted small">Plain letter paper. Each page says in its top corner where it goes in the binder.</p>
                <div class="pages">${pageKeys.map(k => pageHTML(k, actions(k, 'page'))).join('')}</div>` : ''}
@@ -177,7 +178,7 @@ function renderManage() {
     default: {
       const ls = remote.lastSync || {};
       const syncNote = LIVE && ls.when
-        ? `<p class="sync-note">Last Discogs check: ${when(ls.when)}${ls.remaining ? `. Details for ${Number(ls.remaining) || 0} albums are still coming in.` : '.'}${ls.error ? ` It stopped with this message: ${esc(ls.error)}` : ''}</p>` : '';
+        ? `<p class="sync-note">Last Discogs check: ${when(ls.when)}${ls.remaining ? `. Details for ${Number(ls.remaining) || 0} albums are still coming in.` : '.'}${ls.error ? ` It stopped with this message: ${esc(ls.error)}` : ''} Sheet script ${esc(remote.version || '1')}.</p>` : '';
       const intro = pinRequired()
         ? `Unlocked. It locks again by itself after ${Number(setting('idle_minutes')) || CONFIG.idleMinutes} minutes without a touch.`
         : 'Swap discs and records, print pages, cards, and strips, and bring in new albums from Discogs.';
