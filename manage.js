@@ -134,6 +134,7 @@ function renderManage() {
         ${total
           ? `${CONFIG.printing ? '' : '<p class="detail-meta">In this preview, Print only marks an item as printed. On the kiosk it opens the tablet\'s print screen.</p>'}
              <div class="frow"><button class="btn btn-primary" data-print-all>Print everything (${total})</button>
+               ${n ? `<button class="btn btn-secondary" data-skip-all>Skip everything (${n})</button>` : ''}
                ${printedCount ? `<button class="btn btn-secondary" data-clear-printed>Clear ${printedCount} printed</button>` : ''}</div>
              ${pageKeys.length ? `<h2 class="section-title">Binder pages (${pageKeys.length})</h2>
                <p class="muted small">Plain letter paper. Each page says in its top corner where it goes in the binder.</p>

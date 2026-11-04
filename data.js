@@ -283,7 +283,12 @@ function applyLocal(op, replay) {
     case 'tagRemove': state.tags[op.id] = (state.tags[op.id] || []).filter(x => x !== op.tag); break;
     case 'queue': op.keys.forEach(queueLocal); break;
     case 'printed': { const now = Date.now(); op.keys.forEach(k => { if (state.reprint.includes(k)) state.printed[k] = state.printed[k] || now; }); break; }
-    case 'skip': state.reprint = state.reprint.filter(k => k !== op.key); delete state.printed[op.key]; break;
+    case 'skip': {
+      const gone = op.keys || [op.key];
+      state.reprint = state.reprint.filter(k => !gone.includes(k));
+      gone.forEach(k => { delete state.printed[k]; });
+      break;
+    }
     case 'clearPrinted': state.reprint = state.reprint.filter(k => !state.printed[k]); state.printed = {}; break;
     case 'setting':
       if (LIVE) remote.settings[op.key] = op.value;
@@ -328,6 +333,8 @@ const Actions = {
   queue(keys, msg) { return change({ action: 'queue', keys }, msg); },
   printed(keys) { return change({ action: 'printed', keys }); },
   skip(key, msg) { return change({ action: 'skip', key }, msg); },
+  // Everything still unprinted comes off the list in one change. Each item comes back only when a swap or a new album needs it.
+  skipAll(keys) { return change({ action: 'skip', keys }, `Skipped ${keys.length} item${keys.length === 1 ? '' : 's'}. Each comes back when a swap or a new album needs it.`); },
   clearPrinted() { return change({ action: 'clearPrinted' }, 'Printed items cleared from the list.'); },
   setMotion(on) {
     return change({ action: 'setting', key: 'idle_motion', value: on ? 'on' : 'off' }, on ? 'Moving covers are on.' : 'Moving covers are off.');

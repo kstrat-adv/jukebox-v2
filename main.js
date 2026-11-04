@@ -166,6 +166,14 @@ async function onClick(e) {
   if (d.printPage) { await printKeys([d.printPage]); return; }
   if ('printAll' in d) { await printKeys(state.reprint.slice()); return; }
   if ('clearPrinted' in d) { await Actions.clearPrinted(); renderManage(); return; }
+  if ('skipAll' in d) {
+    const keys = state.reprint.filter(k => !state.printed[k]);
+    if (!keys.length) return;
+    const ok = await ask(`Skip all ${keys.length} unprinted item${keys.length === 1 ? '' : 's'}? Each comes back only when a swap or a new album needs it.`, 'Skip them all', 'Keep the list');
+    if (ok) await Actions.skipAll(keys);
+    renderManage();
+    return;
+  }
   if (d.skipPage) {
     const kind = d.skipPage.split(':')[0], kjb = jukeboxByKey(kind);
     await Actions.skip(d.skipPage, kjb && kind === kjb.keys.card
