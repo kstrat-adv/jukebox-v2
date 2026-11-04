@@ -25,7 +25,9 @@ const IDLE_MIN = 12;          // covers per row before it repeats
 const IDLE_SPEED = 20;        // pixels per second
 const IDLE_STEP = 168;        // one cover (150px) plus the gap (18px)
 function showIdle() {
-  const loaded = [...new Set(Object.values(state.slots).map(v => v.id))].filter(id => BY_ID[id]);
+  // What's loaded in either jukebox.
+  const inJukeboxes = Object.values(JUKEBOXES).flatMap(jb => Object.values(state[jb.stateKey] || {}).map(v => v.id));
+  const loaded = [...new Set(inJukeboxes)].filter(id => BY_ID[id]);
   let ids = loaded.slice();
   if (ids.length < IDLE_MIN) {
     const rest = Store.albums().map(a => a.id).filter(id => !ids.includes(id)).sort((x, y) => hash(x) - hash(y));

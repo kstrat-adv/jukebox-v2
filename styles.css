@@ -350,7 +350,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .sheet-preview { display: flex; flex-direction: column; gap: 8px; }
 .sheet-page { position: relative; width: min(620px, 100%); aspect-ratio: 11 / 8.5; background: var(--paper); box-shadow: var(--cover-shadow); border-radius: 3px; }
 .sheet-slot { position: absolute; }
-.sheet-slot .tcard { width: 100%; height: 100%; aspect-ratio: auto; box-shadow: none; }
+.sheet-slot .tcard, .sheet-slot .strip { width: 100%; height: 100%; aspect-ratio: auto; box-shadow: none; }
 .sheet-slot.unused { border: 1px dashed var(--rule); }
 .tc-in { --pt: calc(100cqw / 216); flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; padding: calc(5 * var(--pt)) calc(10 * var(--pt)); }
 .tc-half { --tk: 9; flex: 1 1 0; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: calc(3 * var(--pt)); overflow: hidden; padding-block: calc(5 * var(--pt)); }
@@ -494,6 +494,34 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
   .print-page .page { width: 100%; height: 100%; aspect-ratio: auto !important; box-shadow: none; border-radius: 0; }
   .print-sheet .sheet-page { width: 100%; height: 100%; aspect-ratio: auto; box-shadow: none; border-radius: 0; }
   .print-sheet .sheet-slot.unused { border: 0; }
-  .print-sheet .tcard { border: 0.5pt solid #000000; }
+  .print-sheet .tcard, .print-sheet .strip { border: 0.5pt solid #000000; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ---------- Two jukeboxes ---------- */
+.slot-sel { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+.slot.empty .slot-sel { color: var(--muted); }
+.jukebox-seg { margin-bottom: 14px; }
+
+/* ---------- Seeburg title strips (3 × 1 in, one record per strip) ----------
+   Red rules and the pointed artist box follow the Seeburg's own blank strips; sizes are in points of the printed strip. */
+.strips-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.card-item .strip { width: min(300px, 100%); }
+.strip {
+  --f-narrow: 'Arial Narrow', 'Archivo Narrow', 'Liberation Sans Narrow', sans-serif;
+  --red: #c8352c;
+  aspect-ratio: 3 / 1; width: 100%; max-width: 100%; background: #ffffff; color: #111111;
+  container-type: inline-size; box-shadow: var(--cover-shadow);
+  border: 1px solid var(--ink);   /* the thin cut line */
+  --pt: calc(100cqw / 216);
+  display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
+  padding: calc(3 * var(--pt)) calc(8 * var(--pt)); font-family: var(--f-narrow);
+}
+.st-rule { flex: none; height: calc(1.5 * var(--pt)); background: var(--red); }
+.st-side { display: flex; align-items: center; gap: calc(6 * var(--pt)); min-width: 0; font-size: calc(10 * var(--pt)); line-height: 1.1; font-weight: 700; }
+.st-code { flex: none; min-width: calc(16 * var(--pt)); color: var(--red); font-size: calc(8 * var(--pt)); font-weight: 700; }
+.st-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-artist { position: relative; text-align: center; font-size: calc(8 * var(--pt)); line-height: 1.2; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: calc(2 * var(--pt)) calc(18 * var(--pt)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-artist span { position: relative; }
+.st-box { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--red); stroke-width: 2; }

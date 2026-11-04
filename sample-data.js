@@ -1,5 +1,6 @@
 /* Sample albums for demo mode (used only when config.js has no apiUrl).
-   id | artist | sort name | title | first released | this CD pressed | genres | styles | label | tracks (';' between songs, '##' between discs) */
+   id | artist | sort name | title | first released | this copy pressed | genres | styles | label | tracks (';' between songs, '##' between discs) | format (blank = CD)
+   The last four are 45s for the Seeburg: two songs, one per side. */
 (function () {
 const RAW = `
 a01|Fleetwood Mac|Fleetwood Mac|Rumours|1977|1987|Rock|Soft Rock, Pop Rock|Warner Bros.|Second Hand News;Dreams;Never Going Back Again;Don't Stop;Go Your Own Way;Songbird;The Chain;You Make Loving Fun;I Don't Want to Know;Oh Daddy;Gold Dust Woman
@@ -36,6 +37,10 @@ a31|Buena Vista Social Club|Buena Vista Social Club|Buena Vista Social Club|1997
 a32|Bob Marley & The Wailers|Marley, Bob|Legend|1984|1990|Reggae|Roots Reggae|Island|Is This Love;No Woman, No Cry;Could You Be Loved;Three Little Birds;Buffalo Soldier;Get Up, Stand Up;Stir It Up;One Love / People Get Ready;I Shot the Sheriff;Waiting in Vain;Redemption Song;Satisfy My Soul;Exodus;Jamming
 a33|Joni Mitchell|Mitchell, Joni|Blue|1971|1987|Folk, Pop|Folk|Reprise|All I Want;My Old Man;Little Green;Carey;Blue;California;This Flight Tonight;River;A Case of You;The Last Time I Saw Richard
 a34|The Beach Boys|Beach Boys, The|Pet Sounds|1966|1990|Rock, Pop|Pop Rock|Capitol|Wouldn't It Be Nice;You Still Believe in Me;That's Not Me;Don't Talk (Put Your Head on My Shoulder);I'm Waiting for the Day;Let's Go Away for Awhile;Sloop John B;God Only Knows;I Know There's an Answer;Here Today;I Just Wasn't Made for These Times;Pet Sounds;Caroline, No
+a36|Bill Haley & His Comets|Haley, Bill|Rock Around the Clock / Thirteen Women|1954|1954|Rock|Rock & Roll|Decca|Rock Around the Clock;Thirteen Women (And Only One Man in Town)|45
+a37|Little Richard|Little Richard|Tutti Frutti / I'm Just a Lonely Guy|1955|1955|Rock|Rock & Roll|Specialty|Tutti Frutti;I'm Just a Lonely Guy|45
+a38|Elvis Presley|Presley, Elvis|Hound Dog / Don't Be Cruel|1956|1956|Rock|Rock & Roll|RCA Victor|Hound Dog;Don't Be Cruel|45
+a39|Patsy Cline|Cline, Patsy|Walkin' After Midnight / A Poor Man's Roses|1957|1957|Country|Country|Decca|Walkin' After Midnight;A Poor Man's Roses (Or a Rich Man's Gold)|45
 a35|AC/DC|AC/DC|Back in Black|1980|2003|Rock|Hard Rock|Atlantic|Hells Bells;Shoot to Thrill;What Do You Do for Money Honey;Given the Dog a Bone;Let Me Put My Love into You;Back in Black;You Shook Me All Night Long;Have a Drink on Me;Shake a Leg;Rock and Roll Ain't Noise Pollution
 `;
 const TAG_VOCAB = ['Party', 'Dancing', 'Dinner', 'Sunday morning', 'Road trip', 'Late night'];
@@ -55,5 +60,7 @@ const INITIAL_SLOTS = [
   [14, 'a20', 1], [15, 'a16', 1], [16, 'a17', 1], [17, 'a25', 1], [18, 'a26', 1], [19, 'a31', 1],
   [20, 'a05', 1], [21, 'a05', 2], [22, 'a34', 1], [23, 'a29', 1],
 ];
-window.JUKEBOX_SAMPLE = { raw: RAW, pending: ['a28'], tagVocab: TAG_VOCAB, tags: INITIAL_TAGS, slots: INITIAL_SLOTS };
+// The Seeburg: three of the four sample 45s, leaving one on the shelf to swap in.
+const SEEBURG_SLOTS = [[1, 'a36', 1], [2, 'a37', 1], [5, 'a38', 1]];
+window.JUKEBOX_SAMPLE = { raw: RAW, pending: ['a28'], tagVocab: TAG_VOCAB, tags: INITIAL_TAGS, slots: INITIAL_SLOTS, seeburgSlots: SEEBURG_SLOTS };
 })();

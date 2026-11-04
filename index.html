@@ -19,16 +19,20 @@
   <aside class="rail">
     <div class="brand">
       <span class="brand-name">Jukebox Catalog</span>
-      <span class="brand-sub">Rowe AMI CD jukebox</span>
+      <span class="brand-sub">Rowe AMI and Seeburg jukeboxes</span>
     </div>
     <nav class="nav" aria-label="Sections">
       <button class="nav-btn" data-view="find" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
         <span>Find music</span>
       </button>
-      <button class="nav-btn" data-view="jukebox">
+      <button class="nav-btn" data-view="jukebox" data-jukebox="rowe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.6"/><path d="M12 5.5a6.5 6.5 0 0 1 6.5 6.5" stroke-linecap="round"/></svg>
-        <span>In the jukebox</span>
+        <span>In the Rowe</span>
+      </button>
+      <button class="nav-btn" data-view="jukebox" data-jukebox="seeburg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.6"/><path d="M12 5.5a6.5 6.5 0 0 1 6.5 6.5M12 18.5a6.5 6.5 0 0 1-6.5-6.5" stroke-linecap="round"/></svg>
+        <span>In the Seeburg</span>
       </button>
       <button class="nav-btn" data-view="manage" id="navManage"></button>
     </nav>

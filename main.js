@@ -20,13 +20,16 @@ function renderRail() {
       ? `<span class="rail-sync offline">Offline${remote.loadedAt ? ` · saved copy from ${clock(remote.loadedAt)}` : ''}</span>`
       : remote.loadedAt ? `<span class="rail-sync">Updated ${clock(remote.loadedAt)}</span>` : '';
   }
-  $('#railStats').innerHTML = `<span>${Store.albums().length} albums</span><span>${Store.filledCount()} of ${JUKEBOX.slots.count} slots filled</span>${sync}`;
+  const filled = Object.values(JUKEBOXES).map(jb => `<span>${Store.filledCount(jb)} of ${jb.slots.count} in the ${esc(jukeboxName(jb))}</span>`).join('');
+  $('#railStats').innerHTML = `<span>${Store.albums().length} albums</span>${filled}${sync}`;
   document.querySelectorAll('.nav-btn').forEach(b => {
-    if (b.dataset.view === ui.view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    const on = b.dataset.view === ui.view && (!b.dataset.jukebox || b.dataset.jukebox === JUKEBOX.id);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
 }
 
-function setView(v) {
+function setView(v, jukebox) {
+  if (jukebox) setJukebox(jukebox);
   ui.view = v;
   ['find', 'jukebox', 'manage'].forEach(name => { $('#view-' + name).hidden = name !== v; });
   if (v === 'manage') { ui.manage = 'home'; ui.resetArmed = false; }
@@ -64,7 +67,7 @@ async function onClick(e) {
     if (unlocked()) { ui.swap = fresh(); ui.manage = 'swap-slot'; renderManage(); }
     return;
   }
-  if (d.view) { closeSheet(); setView(d.view); return; }
+  if (d.view) { closeSheet(); setView(d.view, d.jukebox); return; }
   if ('closeSheet' in d) { closeSheet(); return; }
   if (d.open) { openAlbum(d.open, +d.disc || null, +d.track || null); return; }
 
@@ -83,7 +86,7 @@ async function onClick(e) {
   if (t.id === 'allSongs') { ui.allSongs = true; renderResults(); return; }
   if (d.sort) { ui.sort = d.sort; renderResults(); return; }
 
-  if (d.slot && d.mode === 'open') { const v = state.slots[+d.slot]; if (v) openAlbum(v.id, v.disc, null); return; }
+  if (d.slot && d.mode === 'open') { const v = (state[JUKEBOX.stateKey] || {})[+d.slot]; if (v) openAlbum(v.id, v.disc, null); return; }
   if (d.slot && d.mode === 'pick') {
     ui.swap.slot = +d.slot;
     ui.manage = ui.swap.fromAlbum ? 'swap-confirm' : 'swap-pick';
@@ -114,6 +117,7 @@ async function onClick(e) {
     // Everything below needs Manage unlocked.
     if (d.manage || d.loadAlbum || d.tagAdd || d.tagRemove || d.queueAlbum) return;
   }
+  if (d.pickJukebox) { setJukebox(d.pickJukebox); ui.swap = fresh(); renderRail(); renderManage(); return; }
   if (d.manage) {
     if (d.manage === 'swap-slot' && !ui.swap.fromAlbum) ui.swap = fresh();
     if (d.manage === 'home') ui.swap = fresh();
@@ -132,11 +136,12 @@ async function onClick(e) {
     const slot = ui.swap.slot;
     const inc = ui.swap.incoming;
     const inA = inc && BY_ID[inc.id];
-    const r = await Actions.swap(slot, inc);
+    const jb = JUKEBOX;
+    const r = await Actions.swap(slot, inc, jb);
     if (!r.ok) return;
     ui.lastSwap = {
-      text: inA ? `Slot ${pad2(slot)} now holds ${inA.title}${discLabel(inA, inc.disc)}.` : `Slot ${pad2(slot)} is now empty.`,
-      added: 1 + (r.out ? 1 : 0) + (inc ? 1 : 0),
+      text: inA ? `${jukeboxName(jb)} slot ${jb.label(slot)} now holds ${inA.title}${discLabel(inA, inc.disc)}.` : `${jukeboxName(jb)} slot ${jb.label(slot)} is now empty.`,
+      added: 1 + (r.out ? 1 : 0) + (inc ? 1 : 0), cardNoun: jb.cardNoun,
     };
     ui.swap = fresh();
     ui.manage = 'swap-done';
@@ -146,6 +151,9 @@ async function onClick(e) {
   }
   if (d.loadAlbum) {
     const a = BY_ID[d.loadAlbum];
+    const jb = jukeboxFor(a);
+    if (!jb) return;
+    setJukebox(jb.id);
     const disc = a.discs.map((_, i) => i + 1).find(x => Store.slotFor(a.id, x) === null);
     ui.swap = { slot: null, incoming: { id: a.id, disc }, fromAlbum: true, q: '' };
     closeSheet();
@@ -159,23 +167,26 @@ async function onClick(e) {
   if ('printAll' in d) { await printKeys(state.reprint.slice()); return; }
   if ('clearPrinted' in d) { await Actions.clearPrinted(); renderManage(); return; }
   if (d.skipPage) {
-    await Actions.skip(d.skipPage, d.skipPage.startsWith('card')
-      ? 'Skipped. The jukebox keeps its old title card.'
-      : d.skipPage.startsWith('index')
+    const kind = d.skipPage.split(':')[0], kjb = jukeboxByKey(kind);
+    await Actions.skip(d.skipPage, kjb && kind === kjb.keys.card
+      ? `Skipped. The ${jukeboxName(kjb)} keeps its old ${kjb.cardNoun}.`
+      : kjb
       ? 'Skipped. The binder keeps its old index page.'
       : 'Skipped. The binder keeps its old page. You can reprint it from the album any time.');
     renderManage();
     return;
   }
-  if ('queueCards' in d) {
-    const cards = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.slotsPerCard);
-    await Actions.queue(Array.from({ length: cards }, (_, i) => 'card:' + i), `Added all ${cards} title cards to Pages to print.`);
+  if (d.queueCards) {
+    const jb = JUKEBOXES[d.queueCards];
+    const cards = Math.ceil(jb.slots.count / jb.print.slotsPerCard);
+    await Actions.queue(Array.from({ length: cards }, (_, i) => jb.keys.card + ':' + (jb.slots.first + i)), `Added all ${cards} ${jb.cardNoun}s to Pages to print.`);
     renderManage();
     return;
   }
-  if ('queueIndex' in d) {
-    const pages = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.indexPerPage);
-    await Actions.queue(Array.from({ length: pages }, (_, i) => 'index:' + (i + 1)), `Added ${pages} index pages to Pages to print.`);
+  if (d.queueIndex) {
+    const jb = JUKEBOXES[d.queueIndex];
+    const pages = Math.ceil(jb.slots.count / jb.print.indexPerPage);
+    await Actions.queue(Array.from({ length: pages }, (_, i) => jb.keys.index + ':' + (i + 1)), `Added ${pages} ${jukeboxName(jb)} index page${pages > 1 ? 's' : ''} to Pages to print.`);
     renderManage();
     return;
   }

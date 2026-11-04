@@ -8,7 +8,7 @@
    ========================================================= */
 let ALBUMS = [];
 let BY_ID = {};
-let state = { slots: {}, tags: {}, vocab: [], swapLog: [], reprint: [], printed: {}, arrived: [], newIds: [] };
+let state = { slots: {}, seeburgSlots: {}, tags: {}, vocab: [], swapLog: [], reprint: [], printed: {}, arrived: [], newIds: [] };
 const remote = { settings: {}, lastSync: {}, loadedAt: 0, offline: false, loaded: false, pinRequired: false };
 
 function prepAlbum(a) {
@@ -25,13 +25,16 @@ function setAlbums(list) {
   BY_ID = Object.fromEntries(ALBUMS.map(a => [a.id, a]));
 }
 
-let LOC = {};          // "id:disc" -> slot
-let SLOTS_BY_ID = {};  // id -> [{slot, disc}]
+let LOC = {};          // jukebox id -> "id:disc" -> slot
+let SLOTS_BY_ID = {};  // id -> [{jukebox, slot, disc}]
 function reindex() {
   LOC = {}; SLOTS_BY_ID = {};
-  Object.entries(state.slots).forEach(([s, v]) => {
-    LOC[v.id + ':' + v.disc] = +s;
-    (SLOTS_BY_ID[v.id] = SLOTS_BY_ID[v.id] || []).push({ slot: +s, disc: v.disc });
+  Object.values(JUKEBOXES).forEach(jb => {
+    const loc = LOC[jb.id] = {};
+    Object.entries(state[jb.stateKey] || {}).forEach(([s, v]) => {
+      loc[v.id + ':' + v.disc] = +s;
+      (SLOTS_BY_ID[v.id] = SLOTS_BY_ID[v.id] || []).push({ jukebox: jb.id, slot: +s, disc: v.disc });
+    });
   });
   Object.values(SLOTS_BY_ID).forEach(list => list.sort((a, b) => a.disc - b.disc));
 }
@@ -39,7 +42,7 @@ function reindex() {
 // ---- Live: the catalog from the Sheet ----
 function validKey(k) {
   const [kind, ref] = String(k).split(':');
-  return kind === 'album' ? !!BY_ID[ref] : (kind === 'index' || kind === 'card') && /^\d+$/.test(ref || '');
+  return kind === 'album' ? !!BY_ID[ref] : !!jukeboxByKey(kind) && /^\d+$/.test(ref || '');
 }
 function applyCatalog(cat) {
   setAlbums(cat.albums.map(a => {
@@ -51,10 +54,14 @@ function applyCatalog(cat) {
       cover: a.cover, added: a.added, removed: !!a.removed, discs,
     };
   }));
-  state.slots = {};
-  Object.keys(cat.slots || {}).forEach(k => {
-    const v = cat.slots[k];
-    if (BY_ID[v.id] && +k >= 0 && +k < JUKEBOX.slots.count) state.slots[+k] = { id: v.id, disc: Number(v.disc) || 1 };
+  // What's loaded: the Rowe's slots come as v1 always sent them; each jukebox also has its own block in v2.
+  Object.values(JUKEBOXES).forEach(jb => {
+    const src = jb.id === 'rowe' ? (cat.slots || {}) : ((cat.jukeboxes && cat.jukeboxes[jb.id] && cat.jukeboxes[jb.id].loaded) || {});
+    const map = state[jb.stateKey] = {};
+    Object.keys(src).forEach(k => {
+      const v = src[k];
+      if (BY_ID[v.id] && +k >= jb.slots.first && +k < jb.slots.first + jb.slots.count) map[+k] = { id: v.id, disc: Number(v.disc) || 1 };
+    });
   });
   state.tags = Object.fromEntries(cat.albums.map(a => [a.id, a.tags || []]));
   state.vocab = cat.tags || [];
@@ -78,19 +85,20 @@ function demoAlbums() {
   return SAMPLE.raw.trim().split('\n').filter(Boolean).map(line => {
     const f = line.split('|').map(s => s.trim());
     return {
-      id: f[0], artist: f[1], sortName: f[2], title: f[3], origYear: +f[4], pressYear: +f[5], format: 'CD',
+      id: f[0], artist: f[1], sortName: f[2], title: f[3], origYear: +f[4], pressYear: +f[5], format: f[10] || 'CD',
       genres: split(f[6]), styles: split(f[7]), label: f[8], cover: '', added: '',
       discs: f[9].split('##').map(d => d.split(';').map(t => t.trim()).filter(Boolean)),
     };
   });
 }
 function demoFresh() {
-  const slots = {};
+  const slots = {}, seeburgSlots = {};
   SAMPLE.slots.forEach(([s, id, d]) => { slots[s] = { id, disc: d }; });
-  return { v: 3, slots, tags: JSON.parse(JSON.stringify(SAMPLE.tags)), vocab: SAMPLE.tagVocab.slice(),
+  (SAMPLE.seeburgSlots || []).forEach(([s, id, d]) => { seeburgSlots[s] = { id, disc: d }; });
+  return { v: 4, slots, seeburgSlots, tags: JSON.parse(JSON.stringify(SAMPLE.tags)), vocab: SAMPLE.tagVocab.slice(),
     arrived: [], newIds: [], swapLog: [], reprint: [], printed: {} };
 }
-function demoLoad() { const s = readJSON(CONFIG.demoKey); return s && s.v === 3 ? s : demoFresh(); }
+function demoLoad() { const s = readJSON(CONFIG.demoKey); return s && s.v === 4 ? s : demoFresh(); }
 function demoSave() { writeJSON(CONFIG.demoKey, state); reindex(); }
 
 /* =========================================================
@@ -103,7 +111,7 @@ function setting(key) { return LIVE ? remote.settings[key] : localSettings[key];
 function pinRequired() { return LIVE && remote.pinRequired; }
 function unlocked() { return !pinRequired() || ui.unlocked; }
 function idleMs() { return (Number(setting('idle_minutes')) || CONFIG.idleMinutes) * 60000; }
-function jukeboxName() { return setting('jukebox_name') || JUKEBOX.name; }
+function jukeboxName(jb) { jb = jb || JUKEBOX; return setting(jb.nameSetting) || jb.name; }
 function deviceReducesMotion() { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
 function motionSetting() { const m = String(setting('idle_motion') || 'auto').toLowerCase(); return m === 'on' || m === 'off' ? m : 'auto'; }
 function motionOn() { const m = motionSetting(); return m === 'on' ? true : m === 'off' ? false : !deviceReducesMotion(); }
@@ -117,9 +125,10 @@ const Store = {
       : ALBUMS.filter(a => !SAMPLE.pending.includes(a.id) || state.arrived.includes(a.id));
   },
   slotsOf(id) { return SLOTS_BY_ID[id] || []; },
-  slotFor(id, disc) { const k = id + ':' + disc; return k in LOC ? LOC[k] : null; },   // slot 00 is a real slot, so check for null
+  // The slot a disc sits in, in the jukebox that plays its format. Slot 00 is a real slot, so check for null.
+  slotFor(id, disc) { const jb = jukeboxFor(BY_ID[id]); const k = id + ':' + disc; return jb && LOC[jb.id] && k in LOC[jb.id] ? LOC[jb.id][k] : null; },
   tagsOf(id) { return state.tags[id] || []; },
-  filledCount() { return Object.keys(state.slots).length; },
+  filledCount(jb) { return Object.keys(state[(jb || JUKEBOX).stateKey] || {}).length; },
   isNew(id) {
     if (!LIVE) return (state.newIds || []).includes(id);
     const a = BY_ID[id];
@@ -254,11 +263,12 @@ function tagName(t) { return state.vocab.find(v => v.toLowerCase() === t.toLower
 function applyLocal(op, replay) {
   switch (op.action) {
     case 'swap': {
-      const out = state.slots[op.slot] || null;
-      if (op.incoming) state.slots[op.slot] = { id: op.incoming.id, disc: op.incoming.disc }; else delete state.slots[op.slot];
-      if (!replay) state.swapLog.unshift({ at: Date.now(), slot: op.slot, out, in: op.incoming || null });
-      queueLocal('index:' + (Math.floor(op.slot / JUKEBOX.print.indexPerPage) + 1));
-      queueLocal('card:' + Math.floor(op.slot / JUKEBOX.print.slotsPerCard));
+      const jb = JUKEBOXES[op.jukebox] || JUKEBOXES.rowe;
+      const map = state[jb.stateKey] = state[jb.stateKey] || {};
+      const out = map[op.slot] || null;
+      if (op.incoming) map[op.slot] = { id: op.incoming.id, disc: op.incoming.disc }; else delete map[op.slot];
+      if (!replay) state.swapLog.unshift({ at: Date.now(), slot: op.slot, out, in: op.incoming || null, jukebox: jb.id });
+      slotKeys(jb, op.slot).forEach(queueLocal);
       if (out && !(op.incoming && out.id === op.incoming.id && out.disc === op.incoming.disc)) queueLocal('album:' + out.id);
       if (op.incoming) queueLocal('album:' + op.incoming.id);
       break;
@@ -301,9 +311,10 @@ const Actions = {
       return { ok: false, net: true };
     }
   },
-  swap(slot, incoming) {
-    const out = state.slots[slot] || null;
-    change({ action: 'swap', slot, incoming: incoming ? { id: incoming.id, disc: incoming.disc } : null });
+  swap(slot, incoming, jb) {
+    jb = jb || JUKEBOX;
+    const out = (state[jb.stateKey] || {})[slot] || null;
+    change({ action: 'swap', jukebox: jb.id, slot, incoming: incoming ? { id: incoming.id, disc: incoming.disc } : null });
     return { ok: true, out };
   },
   addTag(id, tag) {

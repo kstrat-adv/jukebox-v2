@@ -30,27 +30,48 @@ function cardHalfHTML(slot, withHints) {
       <div class="tc-tracks">${rows}</div></div>`;
 }
 function titleCardBodyHTML(k) {
-  const first = k * JUKEBOX.print.slotsPerCard;
-  return `<div class="tcard"><div class="tc-in">${cardHalfHTML(first, true)}${cardHalfHTML(first + 1, false)}</div></div>`;
+  const [first, second] = cardSlots(JUKEBOXES.rowe, k);
+  return `<div class="tcard"><div class="tc-in">${cardHalfHTML(first, true)}${cardHalfHTML(second, false)}</div></div>`;
 }
 function titleCardHTML(k, actions = '') {
-  const first = k * JUKEBOX.print.slotsPerCard;
-  const cards = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.slotsPerCard);
+  const rowe = JUKEBOXES.rowe;
+  const [first, second] = cardSlots(rowe, k);
+  const cards = Math.ceil(rowe.slots.count / rowe.print.slotsPerCard);
   return `<div class="card-item">${titleCardBodyHTML(k)}
-    <span class="page-cap">Discs ${pad2(first)} and ${pad2(first + 1)} (card ${k + 1} of ${cards}). It replaces that card in the jukebox's display.</span>${actions}</div>`;
+    <span class="page-cap">Discs ${pad2(first)} and ${pad2(second)} (card ${k + 1} of ${cards}). It replaces that card in the ${esc(jukeboxName(rowe))}'s display.</span>${actions}</div>`;
 }
-// How up to 3 cards sit on one letter sheet in landscape: upright, side by side, centered,
-// with a gap between them to trim.
-function sheetPreviewHTML(keys) {
-  const c = JUKEBOX.print.card;
-  const left0 = (c.sheetW - (c.perSheet * c.w + (c.perSheet - 1) * c.gap)) / 2;
-  const top0 = (c.sheetH - c.h) / 2;
+// Seeburg title strip for one record: 3 × 1 in, red rules top and bottom, the two sides with their selections,
+// and the artist in the pointed box in the middle, like the Seeburg's own blank strips. Printed on plain paper.
+function stripBodyHTML(slot) {
+  const jb = JUKEBOXES.seeburg;
+  const v = (state[jb.stateKey] || {})[slot];
+  const a = v && BY_ID[v.id];
+  const tracks = a ? (a.discs[v.disc - 1] || []) : [];
+  const side = i => `<div class="st-side"><span class="st-code">${jb.selection(slot, i + 1).join('')}</span><span class="st-title">${a ? esc(tracks[i] || '') : ''}</span></div>`;
+  return `<div class="strip"><div class="st-rule"></div>${side(0)}
+    <div class="st-artist"><svg class="st-box" viewBox="0 0 300 30" preserveAspectRatio="none" aria-hidden="true"><polygon points="7,1 293,1 299,15 293,29 7,29 1,15"/></svg><span>${a ? esc(a.artist) : 'Empty'}</span></div>
+    ${side(1)}<div class="st-rule"></div></div>`;
+}
+function stripHTML(n, actions = '') {
+  const jb = JUKEBOXES.seeburg;
+  return `<div class="card-item">${stripBodyHTML(n)}
+    <span class="page-cap">Record ${n}, selections ${jb.selection(n, 1).join('')} and ${jb.selection(n, 2).join('')} (strip ${n} of ${jb.slots.count}). It replaces that strip in the ${esc(jukeboxName(jb))}'s display.</span>${actions}</div>`;
+}
+// How cards or strips sit on one letter sheet in landscape: upright, in rows, centered, with a gap between
+// them to trim. The Rowe's sheet holds 3 cards side by side; the Seeburg's holds 18 strips, 3 across and 6 down.
+function sheetPreviewHTML(keys, jb) {
+  jb = jb || JUKEBOXES.rowe;
+  const c = jb.print.card;
+  const left0 = (c.sheetW - (c.across * c.w + (c.across - 1) * c.gap)) / 2;
+  const top0 = (c.sheetH - (c.down * c.h + (c.down - 1) * c.gap)) / 2;
   const pct = (v, of) => (v / of * 100).toFixed(3) + '%';
   let h = '';
   for (let i = 0; i < c.perSheet; i++) {
-    const pos = `left:${pct(left0 + i * (c.w + c.gap), c.sheetW)};top:${pct(top0, c.sheetH)};width:${pct(c.w, c.sheetW)};height:${pct(c.h, c.sheetH)}`;
+    const col = i % c.across, row = Math.floor(i / c.across);
+    const pos = `left:${pct(left0 + col * (c.w + c.gap), c.sheetW)};top:${pct(top0 + row * (c.h + c.gap), c.sheetH)};width:${pct(c.w, c.sheetW)};height:${pct(c.h, c.sheetH)}`;
+    const n = keys[i] ? +keys[i].split(':')[1] : null;
     h += keys[i]
-      ? `<div class="sheet-slot" style="${pos}">${titleCardBodyHTML(+keys[i].split(':')[1])}</div>`
+      ? `<div class="sheet-slot" style="${pos}">${jb.id === 'rowe' ? titleCardBodyHTML(n) : stripBodyHTML(n)}</div>`
       : `<div class="sheet-slot unused" style="${pos}"></div>`;
   }
   return `<div class="sheet-page">${h}</div>`;
@@ -83,35 +104,41 @@ function fitCardsSoon(root) {
 function pageBodyHTML(key) {
   const [kind, ref] = key.split(':');
   const pageOpen = `<div class="page page-${CONFIG.paper}" style="aspect-ratio:${PAPER[CONFIG.paper].ratio}"><div class="pg-in">`;
-  if (kind === 'index') {
-    const n = +ref;
-    const start = (n - 1) * JUKEBOX.print.indexPerPage;
-    const end = Math.min(n * JUKEBOX.print.indexPerPage, JUKEBOX.slots.count) - 1;
-    const pages = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.indexPerPage);
+  const kjb = jukeboxByKey(kind);
+  if (kjb && kind === kjb.keys.index) {
+    // A jukebox's index page: its slots in order, with the Seeburg's selections beside each record.
+    const n = +ref, per = kjb.print.indexPerPage;
+    const start = kjb.slots.first + (n - 1) * per;
+    const end = Math.min(start + per, kjb.slots.first + kjb.slots.count) - 1;
+    const pages = Math.ceil(kjb.slots.count / per);
+    const map = state[kjb.stateKey] || {};
     let rows = '';
     for (let s = start; s <= end; s++) {
-      const v = state.slots[s];
+      const v = map[s];
       const a = v && BY_ID[v.id];
-      rows += `<div class="pg-irow"><span>${pad2(s)}</span><span>${a ? esc(a.artist) : '—'}</span><span>${a ? esc(a.title) + (a.discs.length > 1 ? ` (disc ${v.disc})` : '') : ''}</span></div>`;
+      const no = kjb.showCodes ? `${kjb.label(s)} <small>${kjb.selection(s, 1).join('')}·${kjb.selection(s, 2).join('')}</small>` : kjb.label(s);
+      rows += `<div class="pg-irow"><span>${no}</span><span>${a ? esc(a.artist) : '—'}</span><span>${a ? esc(a.title) + (a.discs.length > 1 ? ` (disc ${v.disc})` : '') : ''}</span></div>`;
     }
     return `${pageOpen}
-        <div class="pg-top"><span>Jukebox index · p. ${n}</span><span>Slots ${pad2(start)}–${pad2(end)}</span></div>
-        <div class="pg-title">Now in the Jukebox</div>
+        <div class="pg-top"><span>${esc(jukeboxName(kjb))} index · p. ${n}</span><span>Slots ${kjb.label(start)}–${kjb.label(end)}</span></div>
+        <div class="pg-title">Now in the ${esc(jukeboxName(kjb))}</div>
         <div class="pg-index">${rows}</div>
         <div class="pg-foot"><span>Page ${n} of ${pages}</span><span>Printed ${today()}</span></div></div></div>`;
   }
   const a = BY_ID[ref];
+  const jb = jukeboxFor(a);
   const slots = Store.slotsOf(a.id);
   const multi = a.discs.length > 1;
-  const right = slots.length ? `${esc(jukeboxName())} ${slots.map(s => pad2(s.slot)).join(' + ')}` : 'On the shelf';
+  const right = slots.length ? `${esc(jukeboxName(jb))} ${slots.map(s => jb.label(s.slot)).join(' + ')}` : 'On the shelf';
   const tracks = a.discs.map((list, di) => {
     const d = di + 1;
     const slot = Store.slotFor(a.id, d);
-    const head = multi ? `<div class="pg-disc">Disc ${d}${slot !== null ? ` · slot ${pad2(slot)}` : ''}</div>` : '';
-    return head + list.map((t, ti) => `<div class="pg-track"><span>${ti + 1}</span><span>${esc(t)}</span>${slot !== null ? `<span class="pg-code">${JUKEBOX.selection(slot, ti + 1).join('')}</span>` : '<span></span>'}</div>`).join('');
+    const head = multi ? `<div class="pg-disc">Disc ${d}${slot !== null ? ` · slot ${jb.label(slot)}` : ''}</div>` : '';
+    const code = ti => { const c = slot !== null ? jb.selection(slot, ti + 1) : null; return c ? `<span class="pg-code">${c.join('')}</span>` : '<span></span>'; };
+    return head + list.map((t, ti) => `<div class="pg-track"><span>${ti + 1}</span><span>${esc(t)}</span>${code(ti)}</div>`).join('');
   }).join('');
   const whereTxt = slots.length
-    ? 'In the jukebox: ' + slots.map(s => (multi ? `disc ${s.disc} in slot ${pad2(s.slot)}` : `slot ${pad2(s.slot)}`)).join(', ')
+    ? `In the ${esc(jukeboxName(jb))}: ` + slots.map(s => (multi ? `disc ${s.disc} in slot ${jb.label(s.slot)}` : `slot ${jb.label(s.slot)}`)).join(', ')
     : 'On the shelf';
   // Long albums switch to two columns so every song fits on one page.
   const rows = a.discs.reduce((n, d) => n + d.length, 0) + (multi ? a.discs.length : 0);
@@ -132,8 +159,10 @@ function pageBodyHTML(key) {
 function pageHTML(key, actions = '') {
   const [kind, ref] = key.split(':');
   if (kind === 'card') return titleCardHTML(+ref, actions);
-  const cap = kind === 'index'
-    ? `Replaces: Jukebox index, page ${ref}`
+  if (kind === 'strip') return stripHTML(+ref, actions);
+  const kjb = jukeboxByKey(kind);
+  const cap = kjb
+    ? `Replaces: ${esc(jukeboxName(kjb))} index, page ${ref}`
     : `Goes in: Collection, letter ${fileLetter(BY_ID[ref])} (replaces the old page)`;
   return `<div class="page-wrap">${pageBodyHTML(key)}<span class="page-cap">${cap}</span>${actions}</div>`;
 }
@@ -141,20 +170,23 @@ function pageHTML(key, actions = '') {
 /* =========================================================
    Printing
    ========================================================= */
-// Binder pages print in filing order: index pages first, then albums in shelf order.
+// Binder pages print in filing order: the Rowe's index pages, then the Seeburg's, then albums in shelf order.
 function pageOrder(x, y) {
   const [kx, rx] = x.split(':'), [ky, ry] = y.split(':');
-  if (kx !== ky) return kx === 'index' ? -1 : 1;
-  return kx === 'index' ? +rx - +ry : byArtist(BY_ID[rx], BY_ID[ry]);
+  const rank = k => (k === 'index' ? 0 : k === 'sindex' ? 1 : 2);
+  if (rank(kx) !== rank(ky)) return rank(kx) - rank(ky);
+  return kx === 'album' ? byArtist(BY_ID[rx], BY_ID[ry]) : +rx - +ry;
 }
 // Binder pages (portrait) and title card sheets (landscape) print as separate jobs, so each job has
 // one page shape, and there's a pause to load the card stock between them.
 function pagesHTML(keys) { return keys.slice().sort(pageOrder).map(k => `<div class="print-page">${pageBodyHTML(k)}</div>`).join(''); }
-function cardSheetsHTML(keys) {
+function cardSheetsHTML(keys, jb) {
+  jb = jb || JUKEBOXES.rowe;
+  const per = jb.print.card.perSheet;
   const cards = keys.slice().sort(byCardNo);
   let h = '';
-  for (let i = 0; i < cards.length; i += JUKEBOX.print.card.perSheet) {
-    h += `<div class="print-sheet">${sheetPreviewHTML(cards.slice(i, i + JUKEBOX.print.card.perSheet))}</div>`;
+  for (let i = 0; i < cards.length; i += per) {
+    h += `<div class="print-sheet">${sheetPreviewHTML(cards.slice(i, i + per), jb)}</div>`;
   }
   return h;
 }
@@ -213,8 +245,9 @@ async function printKeys(keys) {
     renderManage();
     return;
   }
-  const pages = keys.filter(k => !k.startsWith('card:'));
+  const pages = keys.filter(k => !k.startsWith('card:') && !k.startsWith('strip:'));
   const cards = keys.filter(k => k.startsWith('card:'));
+  const strips = keys.filter(k => k.startsWith('strip:'));
   let done = 0;
   if (pages.length) {
     await runPrint(pagesHTML(pages), false);
@@ -225,9 +258,19 @@ async function printKeys(keys) {
     const sheets = Math.ceil(cards.length / JUKEBOX.print.card.perSheet);
     const go = !pages.length || await ask(`Next, the title cards (${sheets} sheet${sheets > 1 ? 's' : ''}). Put card stock in the manual feed slot, then tap Print the cards.`, 'Print the cards', 'Not now');
     if (go) {
-      await runPrint(cardSheetsHTML(cards), true);
+      await runPrint(cardSheetsHTML(cards, JUKEBOXES.rowe), true);
       const ok = await ask(`Did the title card sheet${sheets > 1 ? 's' : ''} come out of the printer?`, 'Yes, mark printed', 'No, keep on the list');
       if (ok) { Actions.printed(cards); done += cards.length; }
+    }
+  }
+  if (strips.length) {
+    // The Seeburg's strips: plain paper again, landscape like the cards, as their own job.
+    const sheets = Math.ceil(strips.length / JUKEBOXES.seeburg.print.card.perSheet);
+    const go = (!pages.length && !cards.length) || await ask(`Next, the Seeburg title strips (${sheets} sheet${sheets > 1 ? 's' : ''}). Plain letter paper in the tray, then tap Print the strips.`, 'Print the strips', 'Not now');
+    if (go) {
+      await runPrint(cardSheetsHTML(strips, JUKEBOXES.seeburg), true);
+      const ok = await ask(`Did the title strip sheet${sheets > 1 ? 's' : ''} come out of the printer?`, 'Yes, mark printed', 'No, keep on the list');
+      if (ok) { Actions.printed(strips); done += strips.length; }
     }
   }
   if (done) toast('Marked as printed.');

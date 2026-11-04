@@ -23,21 +23,21 @@ function renderSheet() {
   if (!a) { closeSheet(); return; }
   const slots = Store.slotsOf(a.id);
   const multi = a.discs.length > 1;
-  const isCD = a.format === 'CD';
+  const jb = jukeboxFor(a);   // null for a format no jukebox plays
   const unloaded = a.discs.map((_, i) => i + 1).filter(d => Store.slotFor(a.id, d) === null);
 
   let where;
   if (slots.length) {
-    const label = slots.map(s => (multi ? `Disc ${s.disc} in slot ${pad2(s.slot)}` : `Slot ${pad2(s.slot)}`)).join(' · ');
-    where = `<div class="where where-juke"><span class="where-label"><span>In the jukebox</span><strong>${label}</strong></span>
+    const label = slots.map(s => (multi ? `Disc ${s.disc} in slot ${jb.label(s.slot)}` : `Slot ${jb.label(s.slot)}`)).join(' · ');
+    where = `<div class="where where-juke"><span class="where-label"><span>In the ${esc(jukeboxName(jb))}</span><strong>${label}</strong></span>
       <span>Punch in the number next to a song to play it.</span></div>`;
   } else {
-    where = `<div class="where where-shelf"><span class="where-label"><span class="muted">${isCD ? 'Not in the jukebox' : esc(a.format)}</span><strong>On the shelf</strong></span>
-      ${unlocked() && isCD ? `<button class="btn btn-primary" data-load-album="${esc(a.id)}">Put it in the jukebox</button>` : ''}</div>`;
+    where = `<div class="where where-shelf"><span class="where-label"><span class="muted">${jb ? `Not in the ${esc(jukeboxName(jb))}` : esc(a.format)}</span><strong>On the shelf</strong></span>
+      ${unlocked() && jb ? `<button class="btn btn-primary" data-load-album="${esc(a.id)}">Put it in the ${esc(jukeboxName(jb))}</button>` : ''}</div>`;
   }
   if (slots.length && unloaded.length && unlocked()) {
     where += `<div class="where where-shelf"><span class="where-label"><span class="muted">Still on the shelf</span><strong>Disc ${unloaded.join(', ')}</strong></span>
-      <button class="btn btn-primary" data-load-album="${esc(a.id)}">Put it in the jukebox</button></div>`;
+      <button class="btn btn-primary" data-load-album="${esc(a.id)}">Put it in the ${esc(jukeboxName(jb))}</button></div>`;
   }
 
   const tags = Store.tagsOf(a.id);
@@ -56,16 +56,16 @@ function renderSheet() {
   const trackHTML = a.discs.map((tracks, di) => {
     const d = di + 1;
     const slot = Store.slotFor(a.id, d);
-    const head = multi ? `<div class="disc-head"><span>Disc ${d}</span><span>${slot !== null ? `Slot ${pad2(slot)}` : 'On the shelf'}</span></div>` : '';
+    const head = multi ? `<div class="disc-head"><span>Disc ${d}</span><span>${slot !== null ? `Slot ${jb.label(slot)}` : 'On the shelf'}</span></div>` : '';
     const rows = tracks.map((t, ti) => {
       const hit = ui.sheet.disc === d && ui.sheet.track === ti + 1;
       return `<div class="track${hit ? ' is-hit' : ''}"${hit ? ' id="hit"' : ''}><span class="track-no">${ti + 1}</span>
-        <span class="track-title">${esc(t)}</span>${slot !== null ? plateHTML(slot, ti + 1) : '<span></span>'}</div>`;
+        <span class="track-title">${esc(t)}</span>${slot !== null ? plateHTML(jb, slot, ti + 1) || '<span></span>' : '<span></span>'}</div>`;
     }).join('');
     return head + (rows || '<p class="muted small">No track list on Discogs.</p>');
   }).join('');
 
-  const meta = [a.origYear ? `First released ${a.origYear}` : '', a.pressYear ? `This ${isCD ? 'CD' : esc(a.format)} pressed ${a.pressYear}` : '', esc(a.label)].filter(Boolean).join(' · ');
+  const meta = [a.origYear ? `First released ${a.origYear}` : '', a.pressYear ? `This ${esc(a.format)} pressed ${a.pressYear}` : '', esc(a.label)].filter(Boolean).join(' · ');
   $('#sheetBody').innerHTML = `
     <div class="detail-top">${coverHTML(a)}
       <div class="detail-info">

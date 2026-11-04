@@ -47,52 +47,65 @@ function renderManage() {
   switch (ui.manage) {
     case 'swap-slot': {
       const inc = sw.incoming && BY_ID[sw.incoming.id];
-      el.innerHTML = `${backbar('home', 'Step 1 of 3', 'Pick the slot to change')}
+      // Which jukebox, unless the album already decided (it came from its own page).
+      const which = inc ? '' : `<div class="seg jukebox-seg" role="group" aria-label="Which jukebox">${Object.values(JUKEBOXES).map(j =>
+        `<button data-pick-jukebox="${j.id}" aria-pressed="${j === JUKEBOX}">${esc(jukeboxName(j))}</button>`).join('')}</div>`;
+      el.innerHTML = `${backbar('home', 'Step 1 of 3', `Pick the ${esc(jukeboxName(JUKEBOX))} slot to change`)}
+        ${which}
         <div class="do-now"><span class="section-title">What to do</span>
           <p>${inc ? `You're putting in <strong>${esc(inc.title)}${discLabel(inc, sw.incoming.disc)}</strong>. Tap an empty slot, or the slot of the disc that's coming out.` : 'Tap the slot you want to change. Dashed slots are empty.'}</p></div>
         <div class="slots">${slotsGridHTML('pick')}</div>`;
       break;
     }
     case 'swap-pick': {
-      const cur = state.slots[sw.slot];
+      const jb = JUKEBOX, L = jb.label(sw.slot);
+      const cur = (state[jb.stateKey] || {})[sw.slot];
       const curA = cur && BY_ID[cur.id];
-      el.innerHTML = `${backbar('swap-slot', 'Step 2 of 3', `Pick what goes into slot ${pad2(sw.slot)}`)}
-        <div class="do-now"><span class="section-title">What to do</span><p>Tap the album that's going into slot ${pad2(sw.slot)}. Type part of its name in the search box to find it faster.</p></div>
+      el.innerHTML = `${backbar('swap-slot', 'Step 2 of 3', `Pick what goes into ${esc(jukeboxName(jb))} slot ${L}`)}
+        <div class="do-now"><span class="section-title">What to do</span><p>Tap the ${jb.unit === 'record' ? 'record' : 'album'} that's going into slot ${L}. Type part of its name in the search box to find it faster.</p></div>
         ${curA
-          ? `<div class="current">${coverHTML(curA)}<span class="song-text"><span class="song-sub">Now in slot ${pad2(sw.slot)}</span><span class="song-title">${esc(curA.title)}${discLabel(curA, cur.disc)}</span><span class="song-sub">${esc(curA.artist)}</span></span></div>`
-          : `<p class="detail-meta">Slot ${pad2(sw.slot)} is empty right now.</p>`}
+          ? `<div class="current">${coverHTML(curA)}<span class="song-text"><span class="song-sub">Now in slot ${L}</span><span class="song-title">${esc(curA.title)}${discLabel(curA, cur.disc)}</span><span class="song-sub">${esc(curA.artist)}</span></span></div>`
+          : `<p class="detail-meta">Slot ${L} is empty right now.</p>`}
         <div class="search search-sm">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
           <label for="pickQ" class="sr-only">Search the shelf</label>
           <input id="pickQ" type="search" placeholder="Search the shelf by artist or album" autocomplete="off" value="${esc(sw.q)}">
         </div>
         <div class="pick-list" id="pickList"></div>
-        ${curA ? `<div><button class="btn btn-secondary" data-incoming="">Leave slot ${pad2(sw.slot)} empty</button></div>` : ''}`;
+        ${curA ? `<div><button class="btn btn-secondary" data-incoming="">Leave slot ${L} empty</button></div>` : ''}`;
       renderPickList();
       break;
     }
     case 'swap-confirm': {
-      const cur = state.slots[sw.slot];
+      const jb = JUKEBOX, L = jb.label(sw.slot);
+      const cur = (state[jb.stateKey] || {})[sw.slot];
       const outA = cur && BY_ID[cur.id];
       const inA = sw.incoming && BY_ID[sw.incoming.id];
       const pages = 1 + (outA ? 1 : 0) + (inA ? 1 : 0);
       const side = (label, a, disc, cls, none) => `<div class="swap-side ${cls}"><span class="section-title">${label}</span>
         ${a ? `${coverHTML(a)}<span class="song-title">${esc(a.title)}${discLabel(a, disc)}</span><span class="song-sub">${esc(a.artist)}</span>` : `<span class="muted">${none}</span>`}</div>`;
-      el.innerHTML = `${backbar(sw.fromAlbum ? 'swap-slot' : 'swap-pick', 'Step 3 of 3', `Check the swap for slot ${pad2(sw.slot)}`)}
-        <div class="swap-confirm">
-          ${side(`Take out of slot ${pad2(sw.slot)}`, outA, cur && cur.disc, 'out', 'Nothing. The slot is empty.')}
-          ${side(`Put into slot ${pad2(sw.slot)}`, inA, sw.incoming && sw.incoming.disc, 'in', 'Nothing. Leave the slot empty.')}
-        </div>
-        <div class="do-now"><span class="section-title">Now, at the jukebox</span>
-          <ol class="steps">
+      // The Rowe's steps come from its service manual. The Seeburg's are the plain version until its guide is written (v2 step 6).
+      const steps = jb.id === 'rowe' ? `
             <li><span>Unlock and open the top door. Move the SERVICE switch to SERVICE.</span></li>
             <li><span>Press the SCAN button (it may be labeled CANCEL/SCAN) to move the disc space to the left or right of the transfer arm.</span></li>
-            ${outA ? `<li><span>Slide ${esc(outA.title)}${discLabel(outA, cur.disc)} out of slot ${pad2(sw.slot)}.</span></li>` : ''}
-            ${inA ? `<li><span>Slide ${esc(inA.title)}${discLabel(inA, sw.incoming.disc)} into slot ${pad2(sw.slot)}, label facing right. Check it sits in slot ${pad2(sw.slot)} at the front and the back.</span></li>` : ''}
-            <li><span>With SERVICE MODE on the display, type 3 1, then ${pad2(sw.slot)}, then press POPULAR.</span></li>
-            <li><span>Move the SERVICE switch back to NORMAL and close the door.</span></li>
+            ${outA ? `<li><span>Slide ${esc(outA.title)}${discLabel(outA, cur.disc)} out of slot ${L}.</span></li>` : ''}
+            ${inA ? `<li><span>Slide ${esc(inA.title)}${discLabel(inA, sw.incoming.disc)} into slot ${L}, label facing right. Check it sits in slot ${L} at the front and the back.</span></li>` : ''}
+            <li><span>With SERVICE MODE on the display, type 3 1, then ${L}, then press POPULAR.</span></li>
+            <li><span>Move the SERVICE switch back to NORMAL and close the door.</span></li>` : `
+            <li><span>Open the Seeburg.</span></li>
+            ${outA ? `<li><span>Lift ${esc(outA.title)} out of slot ${L}.</span></li>` : ''}
+            ${inA ? `<li><span>Put ${esc(inA.title)} into slot ${L}.</span></li>` : ''}
+            <li><span>Print the new title strip for slot ${L} (selections ${jb.selection(sw.slot, 1).join('')} and ${jb.selection(sw.slot, 2).join('')}) and put it in the holder.</span></li>
+            <li><span>Close the Seeburg.</span></li>`;
+      el.innerHTML = `${backbar(sw.fromAlbum ? 'swap-slot' : 'swap-pick', 'Step 3 of 3', `Check the swap for ${esc(jukeboxName(jb))} slot ${L}`)}
+        <div class="swap-confirm">
+          ${side(`Take out of slot ${L}`, outA, cur && cur.disc, 'out', 'Nothing. The slot is empty.')}
+          ${side(`Put into slot ${L}`, inA, sw.incoming && sw.incoming.disc, 'in', 'Nothing. Leave the slot empty.')}
+        </div>
+        <div class="do-now"><span class="section-title">Now, at the ${esc(jukeboxName(jb))}</span>
+          <ol class="steps">${steps}
           </ol></div>
-        <p class="detail-meta">When the CDs are switched, tap Make the swap. ${pages} binder page${pages > 1 ? 's' : ''} and 1 title card will go on the print list.</p>
+        <p class="detail-meta">When the ${jb.unit}s are switched, tap Make the swap. ${pages} binder page${pages > 1 ? 's' : ''} and 1 ${jb.cardNoun} will go on the print list.</p>
         <div class="frow"><button class="btn btn-primary" data-swap-confirm>Make the swap</button>
           <button class="btn btn-secondary" data-manage="home">Cancel</button></div>`;
       break;
@@ -103,14 +116,19 @@ function renderManage() {
       const actions = (key, noun) => (state.printed[key]
         ? `<div class="page-actions"><span class="badge badge-printed">Printed ${when(state.printed[key])}</span><button class="btn-quiet" data-print-page="${key}">Print again</button></div>`
         : `<div class="page-actions"><button class="btn btn-secondary" data-print-page="${key}">Print this ${noun}</button><button class="btn-quiet" data-skip-page="${key}">Skip</button></div>`);
-      const indexPages = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.indexPerPage);
-      const cardCount = Math.ceil(JUKEBOX.slots.count / JUKEBOX.print.slotsPerCard);
-      const pageKeys = state.reprint.filter(k => !k.startsWith('card:'));
+      const rowe = JUKEBOXES.rowe, seeburg = JUKEBOXES.seeburg;
+      const pageKeys = state.reprint.filter(k => !k.startsWith('card:') && !k.startsWith('strip:'));
       const cardKeys = state.reprint.filter(k => k.startsWith('card:')).sort(byCardNo);
-      const sheets = Math.ceil(cardKeys.length / JUKEBOX.print.card.perSheet);
+      const stripKeys = state.reprint.filter(k => k.startsWith('strip:')).sort(byCardNo);
+      const sheets = Math.ceil(cardKeys.length / rowe.print.card.perSheet);
+      const stripSheets = Math.ceil(stripKeys.length / seeburg.print.card.perSheet);
+      const adders = Object.values(JUKEBOXES).map(jb => {
+        const pages = Math.ceil(jb.slots.count / jb.print.indexPerPage), cards = Math.ceil(jb.slots.count / jb.print.slotsPerCard);
+        return `<button class="btn-quiet" data-queue-index="${jb.id}">Add the ${esc(jukeboxName(jb))} index (${pages} page${pages > 1 ? 's' : ''})</button>
+          <button class="btn-quiet" data-queue-cards="${jb.id}">Add all ${cards} ${esc(jukeboxName(jb))} ${jb.cardNoun}s</button>`;
+      }).join('');
       const extras = `<p class="muted small">Need a fresh copy of a page? Open any album while Manage is unlocked and tap Reprint this album's page.</p>
-        <div class="frow"><button class="btn-quiet" data-queue-index>Add the full jukebox index (${indexPages} pages)</button>
-          <button class="btn-quiet" data-queue-cards>Add all ${cardCount} title cards</button>
+        <div class="frow">${adders}
           <button class="btn-quiet" data-queue-albums>Add every album page (${Store.albums().length})</button></div>`;
       el.innerHTML = `${backbar('home', '', 'Pages to print')}
         ${total
@@ -124,8 +142,11 @@ function renderManage() {
                <p class="muted small">Cards print 3 side by side on a landscape letter sheet of heavy paper, front side only (${sheets} sheet${sheets > 1 ? 's' : ''} here). Each card has a thin border to line up on the paper cutter, with a small gap between cards to trim away. Cards print after the binder pages, and the app tells you when to load the card stock.</p>
                <div class="sheet-preview">${sheetPreviewHTML(cardKeys.slice(0, JUKEBOX.print.card.perSheet))}
                  <span class="page-cap">How the first sheet prints${sheets > 1 ? ` (1 of ${sheets})` : ''}.</span></div>
-               <div class="cards-list">${cardKeys.map(k => pageHTML(k, actions(k, 'card'))).join('')}</div>` : ''}`
-          : `<div class="empty-state"><h2>Nothing to print.</h2><p class="muted">The binder and the jukebox cards match the catalog. Swaps and new albums add items here.</p></div>`}
+               <div class="cards-list">${cardKeys.map(k => pageHTML(k, actions(k, 'card'))).join('')}</div>` : ''}
+             ${stripKeys.length ? `<h2 class="section-title">Seeburg title strips (${stripKeys.length})</h2>
+               <p class="muted small">Strips are 3 × 1 in and print 18 to a landscape letter sheet of plain paper (${stripSheets} sheet${stripSheets > 1 ? 's' : ''} here), each with a thin border to cut along. They print as their own job after the cards.</p>
+               <div class="strips-list">${stripKeys.map(k => pageHTML(k, actions(k, 'strip'))).join('')}</div>` : ''}`
+          : `<div class="empty-state"><h2>Nothing to print.</h2><p class="muted">The binder, the title cards, and the title strips match the catalog. Swaps and new albums add items here.</p></div>`}
         ${extras}`;
       fitCardsSoon(el);
       break;
@@ -133,9 +154,9 @@ function renderManage() {
     case 'swap-done': {
       const ls = ui.lastSwap || { text: '', added: 0 };
       el.innerHTML = `<header class="view-head"><h1>Swap saved</h1>
-          <p>${esc(ls.text)} ${ls.added} binder page${ls.added === 1 ? '' : 's'} and 1 title card need reprinting. Print them, then change the title card. The ? button has the steps.</p></header>
+          <p>${esc(ls.text)} ${ls.added} binder page${ls.added === 1 ? '' : 's'} and 1 ${ls.cardNoun || 'title card'} need reprinting. Print them, then change the ${ls.cardNoun || 'title card'}. The ? button has the steps.</p></header>
         <div class="frow"><button class="btn btn-primary" data-manage="print">Print the pages</button>
-          <button class="btn btn-secondary" data-manage="swap-slot">Swap another disc</button>
+          <button class="btn btn-secondary" data-manage="swap-slot">Swap another ${JUKEBOX.unit}</button>
           <button class="btn btn-secondary" data-manage="home">Back to Manage</button></div>`;
       break;
     }
@@ -145,7 +166,8 @@ function renderManage() {
         const i = e.in && BY_ID[e.in.id];
         const outTxt = o ? `took out ${esc(o.title)}${discLabel(o, e.out.disc)}` : e.out ? 'took out an album no longer in the catalog' : 'slot was empty';
         const inTxt = i ? `put in ${esc(i.title)}${discLabel(i, e.in.disc)}` : 'left it empty';
-        return `<div class="history-row"><span class="song-title">Slot ${pad2(e.slot)}: ${outTxt}, ${inTxt}</span><span class="song-sub">${when(e.at)}</span></div>`;
+        const jb = JUKEBOXES[e.jukebox] || JUKEBOXES.rowe;
+        return `<div class="history-row"><span class="song-title">${esc(jukeboxName(jb))} slot ${jb.label(e.slot)}: ${outTxt}, ${inTxt}</span><span class="song-sub">${when(e.at)}</span></div>`;
       }).join('');
       el.innerHTML = `${backbar('home', '', 'Swap history')}
         ${rows ? `<div class="history">${rows}</div>` : `<div class="empty-state"><h2>No swaps yet.</h2><p class="muted">Every swap shows up here with the date and time.</p></div>`}`;
@@ -157,10 +179,10 @@ function renderManage() {
         ? `<p class="sync-note">Last Discogs check: ${when(ls.when)}${ls.remaining ? `. Details for ${Number(ls.remaining) || 0} albums are still coming in.` : '.'}${ls.error ? ` It stopped with this message: ${esc(ls.error)}` : ''}</p>` : '';
       const intro = pinRequired()
         ? `Unlocked. It locks again by itself after ${Number(setting('idle_minutes')) || CONFIG.idleMinutes} minutes without a touch.`
-        : 'Swap discs, print pages and title cards, and bring in new albums from Discogs.';
+        : 'Swap discs and records, print pages, cards, and strips, and bring in new albums from Discogs.';
       el.innerHTML = `<header class="view-head"><h1>Manage</h1><p>${intro}</p></header>
         <div class="tiles">
-          <button class="tile" data-manage="swap-slot"><span class="tile-title">Swap a disc</span><span class="tile-desc">Change what's in a jukebox slot.</span></button>
+          <button class="tile" data-manage="swap-slot"><span class="tile-title">Swap a disc or record</span><span class="tile-desc">Change what's in a slot of either jukebox.</span></button>
           <button class="tile" data-manage="print"><span class="tile-title">Pages to print${n ? ` <span class="count">${n}</span>` : ''}</span><span class="tile-desc">${n ? `${n} item${n > 1 ? 's' : ''} waiting to print.` : 'The binder and the jukebox cards are up to date.'}</span></button>
           <button class="tile" data-sync><span class="tile-title">Check Discogs</span><span class="tile-desc">Bring in albums you've scanned since the last check. This also runs every night.</span></button>
           <button class="tile" data-manage="history"><span class="tile-title">Swap history</span><span class="tile-desc">${state.swapLog.length ? `${state.swapLog.length} swap${state.swapLog.length > 1 ? 's' : ''} recorded.` : 'No swaps yet.'}</span></button>

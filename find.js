@@ -32,15 +32,16 @@ function renderFilters() {
     <div class="fgroup"><span class="flabel">Your tags</span><div class="chips">${state.vocab.map(t => chipHTML('tag', t, t, ui.tags.has(t))).join('')}</div></div>
     ${formats.length > 1 ? `<div class="fgroup"><span class="flabel">Format</span><div class="chips">${formats.map(f => chipHTML('format', f, f, ui.formats.has(f))).join('')}</div></div>` : ''}
     <div class="frow">
-      <button class="toggle" id="onlyJuke" aria-pressed="${ui.onlyJuke}">${ICON.disc}Only what's in the jukebox</button>
+      <button class="toggle" id="onlyJuke" aria-pressed="${ui.onlyJuke}">${ICON.disc}Only what's in a jukebox</button>
       ${n ? `<button class="btn-quiet" id="clearAll">Clear ${n} filter${n > 1 ? 's' : ''}</button>` : ''}
     </div>`;
 }
 function songRowHTML(s) {
+  const jb = jukeboxFor(s.a);
   const slot = Store.slotFor(s.a.id, s.disc);
   const where = slot !== null
-    ? `${plateHTML(slot, s.track)}<span>Slot ${pad2(slot)}, track ${pad2(s.track)}</span>`
-    : `<span class="badge badge-shelf">${s.a.format === 'CD' ? 'Shelf' : esc(s.a.format)}</span>`;
+    ? `${plateHTML(jb, slot, s.track)}<span>${esc(jukeboxName(jb))} slot ${jb.label(slot)}${jb.showCodes ? '' : `, track ${pad2(s.track)}`}</span>`
+    : `<span class="badge badge-shelf">${jb ? 'Shelf' : esc(s.a.format)}</span>`;
   return `<button class="song" data-open="${esc(s.a.id)}" data-disc="${s.disc}" data-track="${s.track}">
     ${coverHTML(s.a)}
     <span class="song-text"><span class="song-title">${esc(s.title)}</span><span class="song-sub">${esc(s.a.artist)} · ${esc(s.a.title)}</span></span>

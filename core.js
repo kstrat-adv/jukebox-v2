@@ -92,16 +92,18 @@ function coverHTML(a) {
   const img = a.cover ? `<img src="${esc(a.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
   return `<span class="cover" style="background:${pat};--cv-bg:${bg};--cv-fg:${fg}" aria-hidden="true">${img}<span class="cv-text"><span class="cv-artist">${esc(a.artist)}</span><span class="cv-title">${esc(a.title)}</span></span></span>`;
 }
-function plateHTML(slot, track) {
-  const c = JUKEBOX.selection(slot, track);
+function plateHTML(jb, slot, track) {
+  const c = jb && jb.selection(slot, track);
+  if (!c) return '';
   return `<span class="plate" title="Selection ${c.join('')}"><span class="sr-only">Selection </span><b>${c[0]}</b><b>${c[1]}</b></span>`;
 }
 function badgesHTML(a) {
   const slots = Store.slotsOf(a.id);
+  const jb = jukeboxFor(a);
   let h = Store.isNew(a.id) ? '<span class="badge badge-new">New</span>' : '';
   if (a.format !== 'CD') h += `<span class="badge badge-shelf">${esc(a.format)}</span>`;
-  else h += slots.length
-    ? `<span class="badge badge-juke">Jukebox ${slots.map(s => pad2(s.slot)).join(' + ')}</span>`
+  if (jb) h += slots.length
+    ? `<span class="badge badge-juke">${esc(jukeboxName(jb))} ${slots.map(s => jb.label(s.slot)).join(' + ')}</span>`
     : '<span class="badge badge-shelf">Shelf</span>';
   return h;
 }
