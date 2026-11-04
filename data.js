@@ -163,8 +163,12 @@ const Api = {
 };
 
 const PENDING_KEY = 'jukebox-catalog-pending-v1';
+// Changes that saved since the last fresh copy of the catalog. Replayed over the saved copy when the page
+// starts, so a skip or a swap doesn't flash back for the moment before the Sheet answers.
+const APPLIED_KEY = 'jukebox-catalog-applied-v1';
 const Saver = {
   queue: LIVE ? (readJSON(PENDING_KEY) || []) : [],
+  applied: LIVE ? (readJSON(APPLIED_KEY) || []) : [],
   sending: false,
   gen: 0,          // goes up after each save, so a catalog load that started before it is ignored
   retryMs: 0,
@@ -185,6 +189,8 @@ const Saver = {
       remote.offline = false;
       if (r.ok) {
         this.queue.splice(0, batch.length);
+        this.applied = this.applied.concat(batch).slice(-300);
+        writeJSON(APPLIED_KEY, this.applied);
         this.gen++;
         this.retryMs = 0;
         const bad = (r.results || []).filter(x => !x.ok);
@@ -237,6 +243,7 @@ async function refresh(quiet) {
     Saver.queue.forEach(op => applyLocal(op, true));        // changes still waiting to save stay on screen
     remote.offline = false;
     writeJSON(CONFIG.cacheKey, cat);
+    Saver.applied = []; writeJSON(APPLIED_KEY, []);   // the fresh copy includes everything that saved
     rerenderAfterChange();
     return true;
   } catch (e) {

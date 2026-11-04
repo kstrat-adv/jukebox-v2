@@ -269,7 +269,7 @@ window.addEventListener('hashchange', () => { if (/[#&]api=/.test(location.hash)
 if (LIVE) {
   const cached = readJSON(CONFIG.cacheKey);
   if (cached && cached.ok) {
-    try { applyCatalog(cached); Saver.queue.forEach(op => applyLocal(op, true)); } catch (e) { /* stale cache: ignore */ }
+    try { applyCatalog(cached); Saver.applied.forEach(op => applyLocal(op, true)); Saver.queue.forEach(op => applyLocal(op, true)); } catch (e) { /* stale cache: ignore */ }
   }
   renderRail(); renderFind();
   if (Saver.pending()) Saver.kick(0); else refresh(true);   // unsaved changes from last time go first
