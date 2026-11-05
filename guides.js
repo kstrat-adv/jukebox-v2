@@ -7,10 +7,10 @@
    How-to guides (each prints on one letter-size page)
    ========================================================= */
 const GUIDES = [
-  { id: 'swap', title: 'Swap a disc in the jukebox', start: true,
+  { id: 'swap', title: 'Swap a disc in the Rowe', start: true,
     note: 'The tablet shows each step on screen while you swap. On the disc holder, only every other slot has a number: even numbers on one half, odd numbers on the other.',
     steps: [
-      "On the tablet, tap Manage and enter your PIN. Tap Swap a disc, tap the slot you're changing, then tap the album that's going in.",
+      "On the tablet, tap Manage and enter your PIN. Tap Swap a disc or record, tap the Rowe, tap the slot you're changing, then tap the album that's going in.",
       'At the jukebox, unlock and open the top door. Move the SERVICE switch to SERVICE.',
       'Press the SCAN button (it may be labeled CANCEL/SCAN) to move the disc space to the left or right of the transfer arm.',
       'Slide the old CD out of the slot. Slide the new CD in with the label facing right. Check that it sits in the same numbered slot at the front and the back.',
@@ -30,6 +30,29 @@ const GUIDES = [
       'Turn the handwheel to the page with that disc number. Slide the new card under the top left and right tabs, then down until it locks in place.',
       'Put the assembly back by reversing steps 2 to 5, then close the door.',
     ] },
+  // The Seeburg's steps are the Select-O-Matic routine, written 11/5 and still to be read against the machine
+  // (the lid, the magazine, the carriage, and the strip holder are named from memory of the model, not its manual).
+  { id: 'sswap', title: 'Swap a record in the Seeburg', start: true,
+    note: 'The Seeburg plays both sides of every record. Record 1 is selections A1 and A2, record 2 is A3 and A4, and so on through K10 (there is no letter I). The jukebox does not need to be told about a new record; only the title strip changes.',
+    steps: [
+      "On the tablet, tap Manage and enter your PIN. Tap Swap a disc or record, tap the Seeburg, tap the slot you're changing, then tap the record that's going in.",
+      'Wait until the jukebox finishes playing and the mechanism is still. Unlock and lift the lid.',
+      'Find the numbered slot in the record magazine. Make sure the carriage is clear of it.',
+      'Lift the old record straight up and out of the slot.',
+      'Slide the new record straight down into the same slot, facing the same way as the records next to it, until it rests on the bottom.',
+      'Close the lid and lock it.',
+      'Back at the tablet, tap Make the swap.',
+      'Print the pages and the title strip it lists. File the pages in the binder, then change the title strip (see Change a title strip).',
+    ] },
+  { id: 'strip', title: 'Change a title strip',
+    note: 'One strip covers one record: the odd selection on the left and the even one on the right, A1 and A2 for record 1. If you have several new strips, change them all while the lid is open.',
+    steps: [
+      'Print the strip: tap Manage, then Pages to print. The strips print last, on plain paper, 18 to a sheet. Cut them apart along the lines.',
+      'Unlock and lift the lid.',
+      'Find the old strip for that record in the title display. Slide it out of its holder.',
+      'Slide the new strip into the same holder, with the odd selection (A1, A3, and so on) on the left.',
+      'Close the lid and lock it.',
+    ] },
   { id: 'add', title: 'Add a new album',
     steps: [
       'Scan the new CD with the Discogs app on your phone, the way you do now.',
@@ -45,6 +68,7 @@ const GUIDES = [
       "Tap Print everything, or tap Print this page under one page. Tap Skip for a page you don't need.",
       'The print screen opens. Check that it shows your printer, then tap the round Print button.',
       'Title cards print after the binder pages, 3 to a sheet. When the app asks, put card stock in the manual feed slot and tap Print the cards. Cut them apart on the paper cutter along the thin border around each card.',
+      'Seeburg title strips print last, on plain paper, 18 to a sheet. When the app asks, tap Print the strips. Cut them apart along the lines.',
       'Each page says in its top corner where it goes. Put it in the binder and throw away the old page.',
       'Back at the tablet, answer whether everything printed. Then tap Clear printed.',
     ] },
@@ -61,8 +85,8 @@ const GUIDES = [
     steps: [
       'Tap Find music.',
       'Type part of a song, album, or artist name. You can also tap a decade, genre, or tag.',
-      'Songs in the jukebox show a number like 22 06.',
-      'Punch that number into the jukebox.',
+      'Songs in the Rowe show a number like 22 06. Songs in the Seeburg show a code like A1.',
+      'Punch that number or code into that jukebox.',
     ] },
 ];
 function renderHelp() {

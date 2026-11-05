@@ -84,7 +84,8 @@ function renderManage() {
       const pages = 1 + (outA ? 1 : 0) + (inA ? 1 : 0);
       const side = (label, a, disc, cls, none) => `<div class="swap-side ${cls}"><span class="section-title">${label}</span>
         ${a ? `${coverHTML(a)}<span class="song-title">${esc(a.title)}${discLabel(a, disc)}</span><span class="song-sub">${esc(a.artist)}</span>` : `<span class="muted">${none}</span>`}</div>`;
-      // The Rowe's steps come from its service manual. The Seeburg's are the plain version until its guide is written (v2 step 6).
+      // The Rowe's steps come from its service manual. The Seeburg's are the Select-O-Matic routine (guides.js), still to be
+      // read against the machine.
       const steps = jb.id === 'rowe' ? `
             <li><span>Unlock and open the top door. Move the SERVICE switch to SERVICE.</span></li>
             <li><span>Press the SCAN button (it may be labeled CANCEL/SCAN) to move the disc space to the left or right of the transfer arm.</span></li>
@@ -92,11 +93,11 @@ function renderManage() {
             ${inA ? `<li><span>Slide ${esc(inA.title)}${discLabel(inA, sw.incoming.disc)} into slot ${L}, label facing right. Check it sits in slot ${L} at the front and the back.</span></li>` : ''}
             <li><span>With SERVICE MODE on the display, type 3 1, then ${L}, then press POPULAR.</span></li>
             <li><span>Move the SERVICE switch back to NORMAL and close the door.</span></li>` : `
-            <li><span>Open the Seeburg.</span></li>
-            ${outA ? `<li><span>Lift ${esc(outA.title)} out of slot ${L}.</span></li>` : ''}
-            ${inA ? `<li><span>Put ${esc(inA.title)} into slot ${L}.</span></li>` : ''}
-            <li><span>Print the new title strip for slot ${L} (selections ${jb.selection(sw.slot, 1).join('')} and ${jb.selection(sw.slot, 2).join('')}) and put it in the holder.</span></li>
-            <li><span>Close the Seeburg.</span></li>`;
+            <li><span>Wait until the jukebox finishes playing and the mechanism is still. Unlock and lift the lid.</span></li>
+            <li><span>Find slot ${L} in the record magazine. Make sure the carriage is clear of it.</span></li>
+            ${outA ? `<li><span>Lift ${esc(outA.title)} straight up and out of slot ${L}.</span></li>` : ''}
+            ${inA ? `<li><span>Slide ${esc(inA.title)} straight down into slot ${L}, facing the same way as the records next to it.</span></li>` : ''}
+            <li><span>Close the lid and lock it. The new strip for selections ${jb.selection(sw.slot, 1).join('')} and ${jb.selection(sw.slot, 2).join('')} goes on the print list.</span></li>`;
       el.innerHTML = `${backbar(sw.fromAlbum ? 'swap-slot' : 'swap-pick', 'Step 3 of 3', `Check the swap for ${esc(jukeboxName(jb))} slot ${L}`)}
         <div class="swap-confirm">
           ${side(`Take out of slot ${L}`, outA, cur && cur.disc, 'out', 'Nothing. The slot is empty.')}
