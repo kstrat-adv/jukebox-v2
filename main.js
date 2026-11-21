@@ -128,11 +128,21 @@ async function onClick(e) {
     if (d.manage || d.loadAlbum || d.tagAdd || d.tagRemove || d.queueAlbum) return;
   }
   if (d.pickJukebox) { setJukebox(d.pickJukebox); ui.swap = fresh(); renderRail(); renderManage(); return; }
-  if ('togglePick' in d) { ui.printPick = !ui.printPick; renderManage(); return; }
+  if ('togglePick' in d) { ui.printPick = !ui.printPick; if (ui.printPick) ui.printPickAlbums = false; renderManage(); return; }
+  if ('togglePickAlbums' in d) { ui.printPickAlbums = !ui.printPickAlbums; if (ui.printPickAlbums) ui.printPick = false; renderManage(); return; }
+  if (d.toggleAlbum) {
+    // The album list under Pages to print: a tap puts the album's binder page on the list, a second tap takes it off.
+    const a = BY_ID[d.toggleAlbum]; if (!a) return;
+    const key = 'album:' + a.id;
+    if (state.reprint.includes(key) && !state.printed[key]) await Actions.skip(key, `Took the page for ${a.title} off the list.`);
+    else await Actions.queue([key], `Added the page for ${a.title} to the list.`);
+    renderManage();
+    return;
+  }
   if (d.manage) {
     if (d.manage === 'swap-slot' && !ui.swap.fromAlbum) ui.swap = fresh();
     if (d.manage === 'home') ui.swap = fresh();
-    if (d.manage !== 'print') ui.printPick = false;
+    if (d.manage !== 'print') { ui.printPick = false; ui.printPickAlbums = false; ui.printQ = ''; }
     ui.manage = d.manage; ui.resetArmed = false;
     renderManage(); $('#main').scrollTop = 0;
     return;
@@ -254,6 +264,7 @@ document.addEventListener('submit', e => {
 document.addEventListener('input', e => {
   if (e.target.id === 'q') { ui.q = e.target.value; ui.allSongs = false; renderResults(); }
   if (e.target.id === 'pickQ') { ui.swap.q = e.target.value; renderPickList(); }
+  if (e.target.id === 'albumQ') { ui.printQ = e.target.value; renderAlbumPickList(); }
 });
 
 document.addEventListener('keydown', e => {

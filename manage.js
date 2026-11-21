@@ -29,6 +29,21 @@ function renderPickList() {
       + (items.length > 60 ? `<p class="muted">Showing 60 of ${items.length}. Type part of a name to narrow the list.</p>` : '')
     : '<p class="muted">Nothing on the shelf matches. Try another name.</p>';
 }
+// The album list under Pages to print: every album, searchable; the ones whose page is on the list are marked.
+function renderAlbumPickList() {
+  const box = document.getElementById('albumPickList');
+  if (!box) return;
+  const q = norm(ui.printQ);
+  const items = Store.albums().filter(a => !q || a._hay.includes(q)).sort(byArtist);
+  box.innerHTML = items.length
+    ? items.slice(0, 60).map(a => {
+      const key = 'album:' + a.id, on = state.reprint.includes(key) && !state.printed[key];
+      return `<button class="pick${on ? ' is-on' : ''}" data-toggle-album="${esc(a.id)}" aria-pressed="${on}">${coverHTML(a)}
+        <span class="song-text"><span class="song-title">${esc(a.title)}</span><span class="song-sub">${esc(a.artist)}${a.origYear ? ' · ' + a.origYear : ''}</span></span>
+        <span class="badge ${on ? 'badge-on' : 'badge-shelf'}">${on ? 'On the list' : 'Add'}</span></button>`;
+    }).join('') + (items.length > 60 ? `<p class="muted">Showing 60 of ${items.length}. Type part of a name to narrow the list.</p>` : '')
+    : '<p class="muted">No album matches. Try another name.</p>';
+}
 function renderManage() {
   const el = $('#view-manage');
   if (!unlocked()) {
@@ -133,10 +148,18 @@ function renderManage() {
       const extras = `<section class="add-list"><h2 class="section-title">Add to the list</h2>
         ${which}
         <div class="frow"><button class="btn-quiet" data-toggle-pick aria-expanded="${ui.printPick}">${ui.printPick ? 'Hide the slots' : `Choose ${esc(jukeboxName(jb))} ${jb.cardNoun}s`}</button>
+          <button class="btn-quiet" data-toggle-pick-albums aria-expanded="${ui.printPickAlbums}">${ui.printPickAlbums ? 'Hide the albums' : 'Choose album pages'}</button>
           <button class="btn-quiet" data-queue-cards="${jb.id}">Add all ${allCards} ${jb.cardNoun}s</button>
           <button class="btn-quiet" data-queue-index="${jb.id}">Add the ${esc(jukeboxName(jb))} index (${idxPages} page${idxPages > 1 ? 's' : ''})</button>
           <button class="btn-quiet" data-queue-albums>Add every album page (${Store.albums().length})</button></div>
         ${ui.printPick ? `<p class="muted small">${how} Slots with an amber edge are on the list.</p><div class="slots">${slotsGridHTML('card')}</div>` : ''}
+        ${ui.printPickAlbums ? `<p class="muted small">Tap an album to add its binder page. Tap again to take it off.</p>
+          <div class="search search-sm add-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+            <label for="albumQ" class="sr-only">Search the albums</label>
+            <input id="albumQ" type="search" placeholder="Search by artist or album" autocomplete="off" value="${esc(ui.printQ)}">
+          </div>
+          <div class="pick-list" id="albumPickList"></div>` : ''}
         <p class="muted small">Need a fresh copy of one album's page? Open the album while Manage is unlocked and tap Reprint this album's page.</p></section>`;
       el.innerHTML = `${backbar('home', '', 'Pages to print')}
         ${total
@@ -163,6 +186,7 @@ function renderManage() {
           : `<div class="empty-state"><h2>Nothing to print.</h2><p class="muted">The binder, the title cards, and the title strips match the catalog. Swaps and new albums add items here.</p></div>`}
         ${extras}`;
       fitCardsSoon(el);
+      renderAlbumPickList();
       break;
     }
     case 'swap-done': {

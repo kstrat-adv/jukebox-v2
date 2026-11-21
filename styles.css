@@ -288,6 +288,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .pick-list { display: flex; flex-direction: column; gap: 8px; }
 .pick { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 10px 14px 10px 10px; border-radius: 12px; background: var(--surface); min-height: 78px; }
 .pick .cover { width: 56px; border-radius: 4px; }
+.pick.is-on { box-shadow: inset 0 0 0 2px var(--amber); }
+.badge-on { border: 1.5px solid var(--amber); color: var(--amber); }
+.add-search { max-width: 560px; }
 .swap-confirm { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
 .swap-side { display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: var(--radius); background: var(--surface); }
 .swap-side .cover { width: 140px; }

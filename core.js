@@ -145,6 +145,7 @@ const ui = {
   decades: new Set(), genres: new Set(), tags: new Set(), formats: new Set(), onlyJuke: false,
   sort: 'artist',
   printPick: false,   // the slot grid under Pages to print, open or closed
+  printPickAlbums: false, printQ: '',   // the album list under Pages to print, and its search text
   allSongs: false,
   unlocked: false, pin: '', pinError: '', pinValue: '', checkingPin: false,
   manage: 'home',            // home | swap-slot | swap-pick | swap-confirm | swap-done | print | history
