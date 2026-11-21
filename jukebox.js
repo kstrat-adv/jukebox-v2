@@ -13,7 +13,9 @@ function slotsGridHTML(mode) {
   for (let s = jb.slots.first; s < jb.slots.first + jb.slots.count; s++) {
     const v = map[s];
     const a = v && BY_ID[v.id];
-    const sel = mode === 'pick' && ui.swap.slot === s ? ' is-selected' : '';
+    // Picking a swap slot marks the tapped slot; picking title cards marks every slot whose card is on the print list.
+    const onList = mode === 'card' && (k => state.reprint.includes(k) && !state.printed[k])(slotKeys(jb, s)[1]);
+    const sel = (mode === 'pick' && ui.swap.slot === s) || onList ? ' is-selected' : '';
     // The Seeburg's slots show their two selections, since that's what gets punched in.
     const no = `<span class="slot-no">${jb.label(s)}</span>${jb.showCodes ? `<span class="slot-sel">${jb.selection(s, 1).join('')} · ${jb.selection(s, 2).join('')}</span>` : ''}`;
     if (a) {

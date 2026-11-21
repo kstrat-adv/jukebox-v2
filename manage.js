@@ -111,22 +111,6 @@ function renderManage() {
           <button class="btn btn-secondary" data-manage="home">Cancel</button></div>`;
       break;
     }
-    case 'pick-card': {
-      // One title card or strip at a time, so a sheet can be filled when only a few are wanted.
-      const jb = JUKEBOX;
-      const waiting = state.reprint.filter(k => k.startsWith(jb.keys.card + ':') && !state.printed[k]).length;
-      const which = `<div class="seg jukebox-seg" role="group" aria-label="Which jukebox">${Object.values(JUKEBOXES).map(j =>
-        `<button data-pick-jukebox="${j.id}" aria-pressed="${j === JUKEBOX}">${esc(jukeboxName(j))}</button>`).join('')}</div>`;
-      const how = jb.print.slotsPerCard > 1
-        ? `Tap either slot a ${jb.cardNoun} covers. The ${jb.cardNoun} for both slots goes on the print list.`
-        : `Tap a record. Its ${jb.cardNoun} goes on the print list.`;
-      el.innerHTML = `${backbar('print', '', `Pick a ${esc(jukeboxName(jb))} ${jb.cardNoun} to print`)}
-        ${which}
-        <div class="do-now"><span class="section-title">What to do</span>
-          <p>${how} Add as many as you like, then tap Back.${waiting ? ` ${waiting} ${esc(jukeboxName(jb))} ${jb.cardNoun}${waiting > 1 ? 's are' : ' is'} waiting to print.` : ''}</p></div>
-        <div class="slots">${slotsGridHTML('card')}</div>`;
-      break;
-    }
     case 'print': {
       const total = state.reprint.length;
       const printedCount = total - n;
@@ -139,15 +123,21 @@ function renderManage() {
       const stripKeys = state.reprint.filter(k => k.startsWith('strip:')).sort(byCardNo);
       const sheets = Math.ceil(cardKeys.length / rowe.print.card.perSheet);
       const stripSheets = Math.ceil(stripKeys.length / seeburg.print.card.perSheet);
-      const adders = Object.values(JUKEBOXES).map(jb => {
-        const pages = Math.ceil(jb.slots.count / jb.print.indexPerPage), cards = Math.ceil(jb.slots.count / jb.print.slotsPerCard);
-        return `<button class="btn-quiet" data-queue-index="${jb.id}">Add the ${esc(jukeboxName(jb))} index (${pages} page${pages > 1 ? 's' : ''})</button>
-          <button class="btn-quiet" data-pick-card="${jb.id}">Add one ${esc(jukeboxName(jb))} ${jb.cardNoun}</button>
-          <button class="btn-quiet" data-queue-cards="${jb.id}">Add all ${cards} ${esc(jukeboxName(jb))} ${jb.cardNoun}s</button>`;
-      }).join('');
-      const extras = `<p class="muted small">Need a fresh copy of a page? Open any album while Manage is unlocked and tap Reprint this album's page.</p>
-        <div class="frow">${adders}
-          <button class="btn-quiet" data-queue-albums>Add every album page (${Store.albums().length})</button></div>`;
+      // Adding to the list: one block, for the jukebox chosen in the segment. The slot grid opens in place,
+      // and a tap puts that slot's title card on the list (a second tap takes it off), so a short sheet can be filled.
+      const jb = JUKEBOX;
+      const idxPages = Math.ceil(jb.slots.count / jb.print.indexPerPage), allCards = Math.ceil(jb.slots.count / jb.print.slotsPerCard);
+      const which = `<div class="seg jukebox-seg" role="group" aria-label="Which jukebox">${Object.values(JUKEBOXES).map(j =>
+        `<button data-pick-jukebox="${j.id}" aria-pressed="${j === jb}">${esc(jukeboxName(j))}</button>`).join('')}</div>`;
+      const how = jb.print.slotsPerCard > 1 ? `Tap a slot to add its ${jb.cardNoun} (one card covers two slots). Tap again to take it off.` : `Tap a record to add its ${jb.cardNoun}. Tap again to take it off.`;
+      const extras = `<section class="add-list"><h2 class="section-title">Add to the list</h2>
+        ${which}
+        <div class="frow"><button class="btn-quiet" data-toggle-pick aria-expanded="${ui.printPick}">${ui.printPick ? 'Hide the slots' : `Choose ${esc(jukeboxName(jb))} ${jb.cardNoun}s`}</button>
+          <button class="btn-quiet" data-queue-cards="${jb.id}">Add all ${allCards} ${jb.cardNoun}s</button>
+          <button class="btn-quiet" data-queue-index="${jb.id}">Add the ${esc(jukeboxName(jb))} index (${idxPages} page${idxPages > 1 ? 's' : ''})</button>
+          <button class="btn-quiet" data-queue-albums>Add every album page (${Store.albums().length})</button></div>
+        ${ui.printPick ? `<p class="muted small">${how} Slots with an amber edge are on the list.</p><div class="slots">${slotsGridHTML('card')}</div>` : ''}
+        <p class="muted small">Need a fresh copy of one album's page? Open the album while Manage is unlocked and tap Reprint this album's page.</p></section>`;
       el.innerHTML = `${backbar('home', '', 'Pages to print')}
         ${total
           ? `${CONFIG.printing ? '' : '<p class="detail-meta">In this preview, Print only marks an item as printed. On the kiosk it opens the tablet\'s print screen.</p>'}
@@ -159,7 +149,7 @@ function renderManage() {
                <p class="muted small">Plain letter paper. Each page says in its top corner where it goes in the binder.</p>
                <div class="pages">${pageKeys.map(k => pageHTML(k, actions(k, 'page'))).join('')}</div>` : ''}
              ${cardKeys.length ? `<h2 class="section-title">Jukebox title cards (${cardKeys.length})</h2>
-               <p class="muted small">Cards print 3 side by side on a landscape letter sheet of heavy paper, front side only (${sheets} sheet${sheets > 1 ? 's' : ''} here). Each card has a thin border to line up on the paper cutter, with a small gap between cards to trim away. Cards print after the binder pages, and the app tells you when to load the card stock. A sheet with fewer than 3 cards prints with the other spaces blank; Add one title card, below, fills them.</p>
+               <p class="muted small">Cards print 3 side by side on a landscape letter sheet of heavy paper, front side only (${sheets} sheet${sheets > 1 ? 's' : ''} here). Each card has a thin border to line up on the paper cutter, with a small gap between cards to trim away. Cards print after the binder pages, and the app tells you when to load the card stock. A sheet with fewer than 3 cards prints with the other spaces blank; Choose title cards, below, fills them.</p>
                <div class="sheet-preview">${sheetPreviewHTML(cardKeys.slice(0, JUKEBOX.print.card.perSheet))}
                  <span class="page-cap">How the first sheet prints${sheets > 1 ? ` (1 of ${sheets})` : ''}.</span></div>
                <div class="cards-list">${cardKeys.map(k => pageHTML(k, actions(k, 'card'))).join('')}</div>` : ''}

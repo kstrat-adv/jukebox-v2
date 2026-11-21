@@ -88,11 +88,12 @@ async function onClick(e) {
 
   if (d.slot && d.mode === 'open') { const v = (state[JUKEBOX.stateKey] || {})[+d.slot]; if (v) openAlbum(v.id, v.disc, null); return; }
   if (d.slot && d.mode === 'card') {
-    // One title card or strip at a time (Pages to print → Add one), for a sheet that would otherwise print part empty.
+    // The slot grid under Pages to print: a tap puts the slot's title card on the list, a second tap takes it off.
     const jb = JUKEBOX, key = slotKeys(jb, +d.slot)[1], k = +key.split(':')[1];
     const covers = cardSlots(jb, k).map(s => jb.label(s));
     const what = covers.length > 1 ? `slots ${covers.join(' and ')}` : `record ${covers[0]} (${jb.selection(k, 1).join('')} and ${jb.selection(k, 2).join('')})`;
-    await Actions.queue([key], `Added the ${jb.cardNoun} for ${what} to Pages to print.`);
+    if (state.reprint.includes(key) && !state.printed[key]) await Actions.skip(key, `Took the ${jb.cardNoun} for ${what} off the list.`);
+    else await Actions.queue([key], `Added the ${jb.cardNoun} for ${what} to the list.`);
     renderManage();
     return;
   }
@@ -127,10 +128,11 @@ async function onClick(e) {
     if (d.manage || d.loadAlbum || d.tagAdd || d.tagRemove || d.queueAlbum) return;
   }
   if (d.pickJukebox) { setJukebox(d.pickJukebox); ui.swap = fresh(); renderRail(); renderManage(); return; }
-  if (d.pickCard) { setJukebox(d.pickCard); ui.swap = fresh(); ui.manage = 'pick-card'; renderRail(); renderManage(); $('#main').scrollTop = 0; return; }
+  if ('togglePick' in d) { ui.printPick = !ui.printPick; renderManage(); return; }
   if (d.manage) {
     if (d.manage === 'swap-slot' && !ui.swap.fromAlbum) ui.swap = fresh();
     if (d.manage === 'home') ui.swap = fresh();
+    if (d.manage !== 'print') ui.printPick = false;
     ui.manage = d.manage; ui.resetArmed = false;
     renderManage(); $('#main').scrollTop = 0;
     return;

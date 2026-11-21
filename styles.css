@@ -502,6 +502,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .slot-sel { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
 .slot.empty .slot-sel { color: var(--muted); }
 .jukebox-seg { margin-bottom: 14px; }
+.add-list { display: flex; flex-direction: column; gap: 14px; margin-top: 36px; padding-top: 24px; border-top: 2px solid var(--line); }
+.add-list .jukebox-seg { margin-bottom: 0; align-self: flex-start; }
 
 /* ---------- Seeburg title strips (3 × 1 in, one record per strip) ----------
    Red rules and the pointed artist box follow the Seeburg's own blank strips; sizes are in points of the printed strip. */
