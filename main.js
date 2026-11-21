@@ -176,6 +176,7 @@ async function onClick(e) {
     return;
   }
   if (d.printPage) { await printKeys([d.printPage]); return; }
+  if (d.printKeys) { await printKeys(d.printKeys.split(',').filter(validKey)); return; }   // one section, or one sheet
   if ('printAll' in d) { await printKeys(state.reprint.slice()); return; }
   if ('clearPrinted' in d) { await Actions.clearPrinted(); renderManage(); return; }
   if ('skipAll' in d) {

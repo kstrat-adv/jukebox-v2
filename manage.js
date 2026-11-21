@@ -147,14 +147,18 @@ function renderManage() {
              ${n && !scriptAtLeast(NEEDS_SCRIPT.skipAll) ? `<p class="muted small">Skip everything needs the Sheet's script updated: this address runs script ${esc(remote.version)}, and it takes ${NEEDS_SCRIPT.skipAll} (in Apps Script: Deploy → Manage deployments → New version).</p>` : ''}
              ${pageKeys.length ? `<h2 class="section-title">Binder pages (${pageKeys.length})</h2>
                <p class="muted small">Plain letter paper. Each page says in its top corner where it goes in the binder.</p>
+               <div class="frow"><button class="btn btn-secondary" data-print-keys="${pageKeys.join(',')}">Print the binder pages (${pageKeys.length})</button></div>
                <div class="pages">${pageKeys.map(k => pageHTML(k, actions(k, 'page'))).join('')}</div>` : ''}
              ${cardKeys.length ? `<h2 class="section-title">Jukebox title cards (${cardKeys.length})</h2>
                <p class="muted small">Cards print 3 side by side on a landscape letter sheet of heavy paper, front side only (${sheets} sheet${sheets > 1 ? 's' : ''} here). Each card has a thin border to line up on the paper cutter, with a small gap between cards to trim away. Cards print after the binder pages, and the app tells you when to load the card stock. A sheet with fewer than 3 cards prints with the other spaces blank; Choose title cards, below, fills them.</p>
-               <div class="sheet-preview">${sheetPreviewHTML(cardKeys.slice(0, JUKEBOX.print.card.perSheet))}
+               <div class="sheet-preview">${sheetPreviewHTML(cardKeys.slice(0, rowe.print.card.perSheet))}
                  <span class="page-cap">How the first sheet prints${sheets > 1 ? ` (1 of ${sheets})` : ''}.</span></div>
+               <div class="frow"><button class="btn btn-secondary" data-print-keys="${cardKeys.slice(0, rowe.print.card.perSheet).join(',')}">Print this sheet (${Math.min(cardKeys.length, rowe.print.card.perSheet)} card${Math.min(cardKeys.length, rowe.print.card.perSheet) > 1 ? 's' : ''})</button>
+                 ${sheets > 1 ? `<button class="btn-quiet" data-print-keys="${cardKeys.join(',')}">Print all ${sheets} card sheets</button>` : ''}</div>
                <div class="cards-list">${cardKeys.map(k => pageHTML(k, actions(k, 'card'))).join('')}</div>` : ''}
              ${stripKeys.length ? `<h2 class="section-title">Seeburg title strips (${stripKeys.length})</h2>
                <p class="muted small">Strips are 3 × 1 in and print 18 to a landscape letter sheet of plain paper (${stripSheets} sheet${stripSheets > 1 ? 's' : ''} here), each with a thin border to cut along. They print as their own job after the cards.</p>
+               <div class="frow"><button class="btn btn-secondary" data-print-keys="${stripKeys.join(',')}">Print the strips (${stripKeys.length})</button></div>
                <div class="strips-list">${stripKeys.map(k => pageHTML(k, actions(k, 'strip'))).join('')}</div>` : ''}`
           : `<div class="empty-state"><h2>Nothing to print.</h2><p class="muted">The binder, the title cards, and the title strips match the catalog. Swaps and new albums add items here.</p></div>`}
         ${extras}`;
