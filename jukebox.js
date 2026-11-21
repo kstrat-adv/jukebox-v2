@@ -20,8 +20,8 @@ function slotsGridHTML(mode) {
       const extra = a.discs.length > 1 ? ` · disc ${v.disc}` : '';
       h += `<button class="slot${sel}" data-slot="${s}" data-mode="${mode}">${no}${coverHTML(a)}
         <span class="slot-title">${esc(a.title)}</span><span class="slot-artist">${esc(a.artist)}${extra}</span></button>`;
-    } else if (mode === 'pick') {
-      h += `<button class="slot empty${sel}" data-slot="${s}" data-mode="pick">${no}<span class="slot-hole">Empty</span></button>`;
+    } else if (mode === 'pick' || mode === 'card') {
+      h += `<button class="slot empty${sel}" data-slot="${s}" data-mode="${mode}">${no}<span class="slot-hole">Empty</span></button>`;
     } else {
       h += `<div class="slot empty">${no}<span class="slot-hole">Empty</span></div>`;
     }
